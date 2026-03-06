@@ -1,0 +1,241 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface-base: #f4f1ec;
+  --surface-card: #faf8f5;
+  --surface-elevated: #ffffff;
+  --bark-700: #2a231a;
+  --bark-400: #7a6a52;
+  --bark-300: #9e8b72;
+  --moss-400: #6a9960;
+  --moss-500: #4d7a44;
+  --clay-500: #b85a3a;
+  --urgency-high: #c4714f;
+  --urgency-low: #6a9960;
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background-color: var(--surface-base);
+    color: var(--bark-700);
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--surface-base);
+    overflow-x: hidden;
+  }
+}
+
+@layer components {
+  /* --- Background texture --- */
+  .bg-grain {
+    position: relative;
+  }
+  .bg-grain::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* --- Card styles --- */
+  .task-card {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .task-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(26,22,20,0.08), 0 12px 32px rgba(26,22,20,0.06);
+  }
+  .task-card:active {
+    transform: scale(0.985);
+  }
+
+  /* --- Urgency stripe --- */
+  .urgency-stripe {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 4px 0 0 4px;
+  }
+
+  /* --- Animations --- */
+  .task-enter {
+    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+  }
+
+  .task-exit {
+    animation: slideOut 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .checkmark-draw {
+    animation: checkDraw 0.4s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+  }
+
+  /* --- Ripple effect --- */
+  .ripple-container {
+    position: relative;
+    overflow: hidden;
+  }
+  .ripple-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(106, 153, 96, 0.2);
+    animation: ripple 0.6s ease-out forwards;
+    pointer-events: none;
+  }
+
+  /* --- Progress ring --- */
+  .progress-ring-circle {
+    transition: stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+  }
+
+  /* --- Staggered children --- */
+  .stagger > *:nth-child(1) { animation-delay: 0.04s; }
+  .stagger > *:nth-child(2) { animation-delay: 0.08s; }
+  .stagger > *:nth-child(3) { animation-delay: 0.12s; }
+  .stagger > *:nth-child(4) { animation-delay: 0.16s; }
+  .stagger > *:nth-child(5) { animation-delay: 0.20s; }
+  .stagger > *:nth-child(6) { animation-delay: 0.24s; }
+  .stagger > *:nth-child(7) { animation-delay: 0.28s; }
+  .stagger > *:nth-child(8) { animation-delay: 0.32s; }
+  .stagger > *:nth-child(9) { animation-delay: 0.36s; }
+  .stagger > *:nth-child(10) { animation-delay: 0.40s; }
+
+  /* --- Glass header --- */
+  .glass-header {
+    background: rgba(244, 241, 236, 0.72);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid rgba(196, 184, 166, 0.3);
+  }
+
+  /* --- Frequency icons --- */
+  .freq-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 3px 10px 3px 7px;
+    border-radius: 20px;
+  }
+
+  /* --- Modal backdrop --- */
+  .modal-backdrop {
+    background: rgba(26,22,20,0.45);
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
+  }
+
+  /* --- Custom scrollbar --- */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(158,139,114,0.3); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(158,139,114,0.5); }
+
+  /* --- Toast --- */
+  .toast-enter {
+    animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+/* --- Keyframes --- */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideOut {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    max-height: 140px;
+    margin-bottom: 12px;
+  }
+  40% {
+    opacity: 0.4;
+    transform: translateX(60px) scale(0.96);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(120px) scale(0.92);
+    max-height: 0;
+    margin-bottom: 0;
+    padding: 0;
+  }
+}
+
+@keyframes checkDraw {
+  0% {
+    stroke-dashoffset: 24;
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes progressFill {
+  from { stroke-dashoffset: var(--circumference); }
+  to { stroke-dashoffset: var(--dash-offset); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulseSoft {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, -12px) scale(0.95); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
