@@ -1,37 +1,59 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getProfiles, saveProfiles, setActiveProfile, AVATARS, COLORS } from '../lib/profiles'
+import { getProfiles, saveProfile, removeProfile, setActiveProfile, AVATARS, COLORS } from '../lib/profiles'
 
 export default function ProfileSelect() {
   const navigate = useNavigate()
-  const [profiles, setProfiles] = useState(getProfiles)
+  const [profiles, setProfiles] = useState([])
   const [showCreate, setShowCreate] = useState(false)
   const [editingProfile, setEditingProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getProfiles().then(data => {
+      setProfiles(data)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [])
 
   function handleSelect(profile) {
     setActiveProfile(profile)
     navigate('/')
   }
 
-  function handleSave(profile) {
-    let updated
-    if (editingProfile) {
-      updated = profiles.map(p => p.id === editingProfile.id ? { ...editingProfile, ...profile } : p)
-    } else {
-      updated = [...profiles, { id: crypto.randomUUID(), ...profile }]
+  async function handleSave(data) {
+    try {
+      if (editingProfile) {
+        const updated = await saveProfile({ id: editingProfile.id, ...data })
+        setProfiles(prev => prev.map(p => p.id === editingProfile.id ? updated : p))
+      } else {
+        const created = await saveProfile(data)
+        setProfiles(prev => [...prev, created])
+      }
+      setShowCreate(false)
+      setEditingProfile(null)
+    } catch (err) {
+      console.error('Error saving profile:', err)
     }
-    saveProfiles(updated)
-    setProfiles(updated)
-    setShowCreate(false)
-    setEditingProfile(null)
   }
 
-  function handleDelete(id) {
-    const updated = profiles.filter(p => p.id !== id)
-    saveProfiles(updated)
-    setProfiles(updated)
-    setEditingProfile(null)
-    setShowCreate(false)
+  async function handleDelete(id) {
+    try {
+      await removeProfile(id)
+      setProfiles(prev => prev.filter(p => p.id !== id))
+      setEditingProfile(null)
+      setShowCreate(false)
+    } catch (err) {
+      console.error('Error deleting profile:', err)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center" style={{ background: 'var(--surface-base)' }}>
+        <div className="font-body text-sm" style={{ color: 'var(--bark-300)' }}>Cargando...</div>
+      </div>
+    )
   }
 
   return (

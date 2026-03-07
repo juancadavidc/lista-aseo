@@ -50,3 +50,21 @@ export async function resetTask(taskId) {
 export async function fetchTaskHistory(taskId, limit = 10) {
   return request(`/completions/${taskId}/history?limit=${limit}`)
 }
+
+// --- Profiles ---
+
+export async function fetchProfiles() {
+  return request('/profiles')
+}
+
+export async function createProfile(profile) {
+  return request('/profiles', { method: 'POST', body: JSON.stringify(profile) })
+}
+
+export async function updateProfile(id, updates) {
+  return request(`/profiles/${id}`, { method: 'PATCH', body: JSON.stringify(updates) })
+}
+
+export async function deleteProfile(id) {
+  return request(`/profiles/${id}`, { method: 'DELETE' })
+}

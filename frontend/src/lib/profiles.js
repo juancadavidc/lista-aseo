@@ -1,4 +1,5 @@
-const PROFILES_KEY = 'casalimpia_profiles'
+import { fetchProfiles, createProfile, updateProfile, deleteProfile } from './api'
+
 const ACTIVE_KEY = 'casalimpia_active_profile'
 
 export const AVATARS = ['🧑', '👩', '👨', '🧒', '👧', '👦', '🐱', '🐶', '🌿', '🌸', '🏠', '⭐']
@@ -14,16 +15,19 @@ export const COLORS = [
   '#b87a5b',
 ]
 
-export function getProfiles() {
-  try {
-    return JSON.parse(localStorage.getItem(PROFILES_KEY)) || []
-  } catch {
-    return []
-  }
+export async function getProfiles() {
+  return fetchProfiles()
 }
 
-export function saveProfiles(profiles) {
-  localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles))
+export async function saveProfile(profile) {
+  if (profile.id) {
+    return updateProfile(profile.id, { name: profile.name, avatar: profile.avatar, color: profile.color })
+  }
+  return createProfile({ name: profile.name, avatar: profile.avatar, color: profile.color })
+}
+
+export async function removeProfile(id) {
+  return deleteProfile(id)
 }
 
 export function getActiveProfile() {

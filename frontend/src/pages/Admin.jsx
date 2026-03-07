@@ -3,7 +3,7 @@ import {
   fetchAllTasks, createTask, updateTask, deleteTask, resetTask,
   frequencyLabel, FREQUENCY_LABELS,
 } from '../lib/tasks'
-import { getProfiles, saveProfiles, getActiveProfile, clearActiveProfile, AVATARS, COLORS } from '../lib/profiles'
+import { getProfiles, removeProfile, getActiveProfile, clearActiveProfile, AVATARS, COLORS } from '../lib/profiles'
 import TaskForm from '../components/TaskForm'
 import HistoryModal from '../components/HistoryModal'
 
@@ -40,19 +40,24 @@ export default function Admin() {
   const [resettingId, setResettingId] = useState(null)
   const [historyTask, setHistoryTask] = useState(null)
   const [toast, setToast] = useState(null)
-  const [profiles, setProfilesList] = useState(getProfiles)
+  const [profiles, setProfilesList] = useState([])
   const [editingProfileId, setEditingProfileId] = useState(null)
   const [deletingProfileId, setDeletingProfileId] = useState(null)
 
-  function handleDeleteProfile(id) {
+  useEffect(() => {
+    getProfiles().then(setProfilesList).catch(() => {})
+  }, [])
+
+  async function handleDeleteProfile(id) {
     if (deletingProfileId === id) {
-      const updated = profiles.filter(p => p.id !== id)
-      saveProfiles(updated)
-      setProfilesList(updated)
-      const active = getActiveProfile()
-      if (active?.id === id) clearActiveProfile()
-      setDeletingProfileId(null)
-      showToast('Perfil eliminado', 'warning')
+      try {
+        await removeProfile(id)
+        setProfilesList(prev => prev.filter(p => p.id !== id))
+        const active = getActiveProfile()
+        if (active?.id === id) clearActiveProfile()
+        showToast('Perfil eliminado', 'warning')
+      } catch { showToast('Error al eliminar perfil', 'error') }
+      finally { setDeletingProfileId(null) }
     } else {
       setDeletingProfileId(id)
       setTimeout(() => setDeletingProfileId(null), 3000)

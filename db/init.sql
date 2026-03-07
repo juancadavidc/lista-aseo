@@ -1,3 +1,11 @@
+CREATE TABLE IF NOT EXISTS profiles (
+    id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name        TEXT NOT NULL,
+    avatar      TEXT NOT NULL DEFAULT '🧑',
+    color       TEXT NOT NULL DEFAULT '#6a9960',
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS tasks (
     id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name        TEXT NOT NULL,
