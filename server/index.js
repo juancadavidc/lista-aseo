@@ -1,6 +1,37 @@
 import express from 'express'
 import cors from 'cors'
 import pg from 'pg'
+import multer from 'multer'
+import path from 'path'
+import fs from 'fs'
+import crypto from 'crypto'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const UPLOADS_DIR = path.join(__dirname, 'uploads')
+
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true })
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase()
+    cb(null, crypto.randomUUID() + ext)
+  },
+})
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.webp']
+    const ext = path.extname(file.originalname).toLowerCase()
+    if (allowed.includes(ext)) cb(null, true)
+    else cb(new Error('Solo se permiten imágenes .jpg, .png, .webp'))
+  },
+})
 
 const { Pool } = pg
 
@@ -15,6 +46,7 @@ const pool = new Pool({
 const app = express()
 app.use(cors())
 app.use(express.json())
+app.use('/api/uploads', express.static(UPLOADS_DIR))
 
 // --- Profiles ---
 
@@ -86,6 +118,24 @@ app.get('/api/health', async (req, res) => {
   }
 })
 
+// --- Uploads ---
+
+// POST /api/uploads - upload a product image
+app.post('/api/uploads', upload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No se proporcionó imagen' })
+  res.json({ filename: req.file.filename })
+})
+
+// DELETE /api/uploads/:filename - delete an uploaded image
+app.delete('/api/uploads/:filename', (req, res) => {
+  const safeName = path.basename(req.params.filename)
+  const filePath = path.join(UPLOADS_DIR, safeName)
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath)
+  }
+  res.json({ ok: true })
+})
+
 // GET /api/tasks - all tasks
 app.get('/api/tasks', async (req, res) => {
   try {
@@ -103,11 +153,11 @@ app.get('/api/tasks', async (req, res) => {
 // POST /api/tasks - create task
 app.post('/api/tasks', async (req, res) => {
   try {
-    const { name, description, frequency_type, frequency_value, is_active } = req.body
+    const { name, description, frequency_type, frequency_value, is_active, product_name, product_image } = req.body
     const { rows } = await pool.query(
-      `INSERT INTO tasks (name, description, frequency_type, frequency_value, is_active)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [name, description, frequency_type, frequency_value, is_active ?? true]
+      `INSERT INTO tasks (name, description, frequency_type, frequency_value, is_active, product_name, product_image)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [name, description, frequency_type, frequency_value, is_active ?? true, product_name || null, product_image || null]
     )
     res.json(rows[0])
   } catch (err) {
@@ -141,6 +191,11 @@ app.patch('/api/tasks/:id', async (req, res) => {
 app.delete('/api/tasks/:id', async (req, res) => {
   try {
     const { id } = req.params
+    const { rows: taskRows } = await pool.query('SELECT product_image FROM tasks WHERE id = $1', [id])
+    if (taskRows.length > 0 && taskRows[0].product_image) {
+      const filePath = path.join(UPLOADS_DIR, taskRows[0].product_image)
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+    }
     await pool.query('DELETE FROM completions WHERE task_id = $1', [id])
     await pool.query('DELETE FROM tasks WHERE id = $1', [id])
     res.json({ ok: true })
@@ -212,6 +267,26 @@ async function migrate() {
     if (rows.length === 0) {
       await pool.query('ALTER TABLE completions ADD COLUMN completed_by TEXT')
       console.log('Migration: added completed_by column to completions')
+    }
+
+    // Add product_name column if missing
+    const { rows: pnRows } = await pool.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'tasks' AND column_name = 'product_name'
+    `)
+    if (pnRows.length === 0) {
+      await pool.query('ALTER TABLE tasks ADD COLUMN product_name TEXT')
+      console.log('Migration: added product_name column to tasks')
+    }
+
+    // Add product_image column if missing
+    const { rows: piRows } = await pool.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'tasks' AND column_name = 'product_image'
+    `)
+    if (piRows.length === 0) {
+      await pool.query('ALTER TABLE tasks ADD COLUMN product_image TEXT')
+      console.log('Migration: added product_image column to tasks')
     }
 
     // Create profiles table if missing

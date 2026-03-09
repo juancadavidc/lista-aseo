@@ -51,6 +51,31 @@ export async function fetchTaskHistory(taskId, limit = 10) {
   return request(`/completions/${taskId}/history?limit=${limit}`)
 }
 
+// --- Product images ---
+
+export async function uploadProductImage(file) {
+  const formData = new FormData()
+  formData.append('image', file)
+  const res = await fetch(`${API_BASE}/uploads`, {
+    method: 'POST',
+    body: formData,
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.error || `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
+export async function deleteProductImage(filename) {
+  return request(`/uploads/${filename}`, { method: 'DELETE' })
+}
+
+export function getImageUrl(filename) {
+  if (!filename) return null
+  return `${API_BASE}/uploads/${filename}`
+}
+
 // --- Profiles ---
 
 export async function fetchProfiles() {

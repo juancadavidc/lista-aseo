@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FREQUENCY_LABELS, FREQUENCY_DEFAULTS } from '../lib/tasks'
+import { uploadProductImage, deleteProductImage, getImageUrl } from '../lib/api'
 
 const FREQ_ICONS = {
   daily: '☀️',
@@ -14,12 +15,17 @@ const DEFAULT_FORM = {
   frequency_type: 'daily',
   frequency_value: '',
   is_active: true,
+  product_name: '',
+  product_image: '',
 }
 
 export default function TaskForm({ task, onSave, onCancel }) {
   const [form, setForm] = useState(DEFAULT_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (task) {
@@ -29,14 +35,52 @@ export default function TaskForm({ task, onSave, onCancel }) {
         frequency_type: task.frequency_type || 'daily',
         frequency_value: task.frequency_value !== null && task.frequency_value !== undefined ? String(task.frequency_value) : '',
         is_active: task.is_active ?? true,
+        product_name: task.product_name || '',
+        product_image: task.product_image || '',
       })
     } else {
       setForm(DEFAULT_FORM)
     }
   }, [task])
 
+  useEffect(() => {
+    if (form.product_image) {
+      setPreviewUrl(getImageUrl(form.product_image))
+    } else {
+      setPreviewUrl(null)
+    }
+  }, [form.product_image])
+
   function set(field, value) {
     setForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  async function handleImageUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setError(null)
+    try {
+      if (form.product_image) {
+        await deleteProductImage(form.product_image).catch(() => {})
+      }
+      const { filename } = await uploadProductImage(file)
+      set('product_image', filename)
+      setPreviewUrl(URL.createObjectURL(file))
+    } catch (err) {
+      setError('Error al subir imagen: ' + err.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handleRemoveImage() {
+    if (form.product_image) {
+      await deleteProductImage(form.product_image).catch(() => {})
+    }
+    set('product_image', '')
+    setPreviewUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   async function handleSubmit(e) {
@@ -51,6 +95,8 @@ export default function TaskForm({ task, onSave, onCancel }) {
         frequency_type: form.frequency_type,
         frequency_value: form.frequency_value ? parseInt(form.frequency_value) : FREQUENCY_DEFAULTS[form.frequency_type],
         is_active: form.is_active,
+        product_name: form.product_name.trim() || null,
+        product_image: form.product_image || null,
       })
     } catch (err) {
       setError('Error al guardar: ' + err.message)
@@ -144,6 +190,79 @@ export default function TaskForm({ task, onSave, onCancel }) {
           onFocus={e => e.target.style.borderColor = 'var(--moss-400)'}
           onBlur={e => e.target.style.borderColor = 'rgba(196,184,166,0.3)'}
         />
+      </div>
+
+      {/* Product info section */}
+      <div>
+        <label className="block font-body font-semibold text-[12px] uppercase tracking-wider mb-1.5" style={{ color: 'var(--bark-400)' }}>
+          Producto de limpieza <span style={{ color: 'var(--bark-300)', fontWeight: 400, textTransform: 'none' }}>(opcional)</span>
+        </label>
+        <input
+          type="text"
+          value={form.product_name}
+          onChange={e => set('product_name', e.target.value)}
+          placeholder="ej: Fabuloso Lavanda"
+          className="w-full px-3.5 py-2.5 rounded-xl font-body text-[14px] focus:outline-none transition-all mb-2"
+          style={{
+            background: 'var(--surface-elevated)',
+            border: '1.5px solid rgba(196,184,166,0.3)',
+            color: 'var(--bark-700)',
+          }}
+          onFocus={e => e.target.style.borderColor = 'var(--moss-400)'}
+          onBlur={e => e.target.style.borderColor = 'rgba(196,184,166,0.3)'}
+        />
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handleImageUpload}
+          className="hidden"
+        />
+
+        {previewUrl ? (
+          <div className="relative inline-block">
+            <img
+              src={previewUrl}
+              alt="Producto"
+              className="w-24 h-24 rounded-xl object-cover"
+              style={{ border: '1.5px solid rgba(196,184,166,0.3)' }}
+            />
+            <button
+              type="button"
+              onClick={handleRemoveImage}
+              className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-[12px] font-bold"
+              style={{ background: 'var(--clay-500)' }}
+            >
+              ×
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="w-full py-4 rounded-xl font-body text-[13px] transition-all active:scale-[0.98] flex flex-col items-center gap-1.5"
+            style={{
+              background: 'var(--surface-elevated)',
+              border: '2px dashed rgba(196,184,166,0.4)',
+              color: 'var(--bark-300)',
+            }}
+          >
+            {uploading ? (
+              <span className="animate-spin text-[18px]">⏳</span>
+            ) : (
+              <>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <path d="M21 15l-5-5L5 21"/>
+                </svg>
+                <span>Agregar foto del producto</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Active toggle */}

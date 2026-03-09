@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     frequency_type  TEXT NOT NULL CHECK (frequency_type IN ('daily', 'weekly', 'biweekly', 'monthly')),
     frequency_value INTEGER NOT NULL DEFAULT 1,
     is_active   BOOLEAN NOT NULL DEFAULT true,
+    product_name  TEXT,
+    product_image TEXT,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 

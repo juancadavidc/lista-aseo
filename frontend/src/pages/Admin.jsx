@@ -3,6 +3,7 @@ import {
   fetchAllTasks, createTask, updateTask, deleteTask, resetTask,
   frequencyLabel, FREQUENCY_LABELS,
 } from '../lib/tasks'
+import { getImageUrl } from '../lib/api'
 import { getProfiles, removeProfile, getActiveProfile, clearActiveProfile, AVATARS, COLORS } from '../lib/profiles'
 import TaskForm from '../components/TaskForm'
 import HistoryModal from '../components/HistoryModal'
@@ -359,6 +360,21 @@ function TaskAdminCard({ task, deletingId, resettingId, onEdit, onDelete, onRese
               <p className="font-body text-[12px] mt-0.5 truncate" style={{ color: 'var(--bark-300)' }}>
                 {task.description}
               </p>
+            )}
+            {task.product_name && (
+              <div className="flex items-center gap-1.5 mt-1">
+                {task.product_image && (
+                  <img
+                    src={getImageUrl(task.product_image)}
+                    alt={task.product_name}
+                    className="w-6 h-6 rounded-md object-cover flex-shrink-0"
+                    style={{ border: '1px solid rgba(196,184,166,0.3)' }}
+                  />
+                )}
+                <span className="font-body text-[11px]" style={{ color: 'var(--bark-400)' }}>
+                  🧴 {task.product_name}
+                </span>
+              </div>
             )}
             <div className="flex items-center gap-1.5 mt-1.5">
               <span
