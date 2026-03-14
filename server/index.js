@@ -256,6 +256,99 @@ app.get('/api/completions/:taskId/history', async (req, res) => {
   }
 })
 
+// --- Products ---
+
+// GET /api/products
+app.get('/api/products', async (req, res) => {
+  try {
+    const category = req.query.category
+    const outOfStock = req.query.out_of_stock
+    let query = 'SELECT * FROM products'
+    const conditions = []
+    const params = []
+
+    if (category) {
+      params.push(category)
+      conditions.push(`category = $${params.length}`)
+    }
+    if (outOfStock === 'true') {
+      conditions.push('is_out_of_stock = true')
+    }
+
+    if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ')
+    query += ' ORDER BY is_out_of_stock DESC, name'
+
+    const { rows } = await pool.query(query, params)
+    res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/products
+app.post('/api/products', async (req, res) => {
+  try {
+    const { name, category, reminder_frequency_days, is_out_of_stock } = req.body
+    if (!name?.trim()) return res.status(400).json({ error: 'name is required' })
+    const { rows } = await pool.query(
+      `INSERT INTO products (name, category, reminder_frequency_days, is_out_of_stock)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [name.trim(), category || 'general', reminder_frequency_days || 30, is_out_of_stock ?? false]
+    )
+    res.json(rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// PATCH /api/products/:id
+app.patch('/api/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const fields = req.body
+    const keys = Object.keys(fields)
+    if (keys.length === 0) return res.status(400).json({ error: 'No fields to update' })
+
+    const setClauses = keys.map((k, i) => `${k} = $${i + 2}`)
+    const values = keys.map(k => fields[k])
+
+    const { rows } = await pool.query(
+      `UPDATE products SET ${setClauses.join(', ')} WHERE id = $1 RETURNING *`,
+      [id, ...values]
+    )
+    if (rows.length === 0) return res.status(404).json({ error: 'Product not found' })
+    res.json(rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/products/:id/purchase - mark as purchased
+app.post('/api/products/:id/purchase', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { rows } = await pool.query(
+      `UPDATE products SET last_purchased_at = NOW(), is_out_of_stock = false WHERE id = $1 RETURNING *`,
+      [id]
+    )
+    if (rows.length === 0) return res.status(404).json({ error: 'Product not found' })
+    res.json(rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// DELETE /api/products/:id
+app.delete('/api/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    await pool.query('DELETE FROM products WHERE id = $1', [id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // Auto-migrate
 async function migrate() {
   try {
@@ -299,6 +392,20 @@ async function migrate() {
         created_at  TIMESTAMPTZ DEFAULT NOW()
       )
     `)
+    // Create products table if missing
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS products (
+        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        name            TEXT NOT NULL,
+        category        TEXT NOT NULL DEFAULT 'general',
+        is_out_of_stock BOOLEAN NOT NULL DEFAULT false,
+        reminder_frequency_days INTEGER NOT NULL DEFAULT 30,
+        last_purchased_at TIMESTAMPTZ,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      )
+    `)
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_products_out_of_stock ON products(is_out_of_stock)')
   } catch (err) {
     console.error('Migration error:', err.message)
   }

@@ -28,6 +28,34 @@ CREATE TABLE IF NOT EXISTS completions (
 CREATE INDEX IF NOT EXISTS idx_completions_task_id ON completions(task_id);
 CREATE INDEX IF NOT EXISTS idx_completions_completed_at ON completions(completed_at DESC);
 
+CREATE TABLE IF NOT EXISTS products (
+    id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name            TEXT NOT NULL,
+    category        TEXT NOT NULL DEFAULT 'general',
+    is_out_of_stock BOOLEAN NOT NULL DEFAULT false,
+    reminder_frequency_days INTEGER NOT NULL DEFAULT 30,
+    last_purchased_at TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+CREATE INDEX IF NOT EXISTS idx_products_out_of_stock ON products(is_out_of_stock);
+
+-- Productos de ejemplo
+INSERT INTO products (name, category, reminder_frequency_days, is_out_of_stock) VALUES
+    ('Jabon lavavajillas',    'limpieza',   30, false),
+    ('Lejia',                 'limpieza',   30, false),
+    ('Fregasuelos',           'limpieza',   30, false),
+    ('Limpiacristales',       'limpieza',   60, false),
+    ('Esponjas',              'limpieza',   30, false),
+    ('Bolsas de basura',      'limpieza',   14, false),
+    ('Papel higienico',       'bano',       14, false),
+    ('Jabon de manos',        'bano',       30, false),
+    ('Ambientador',           'bano',       30, false),
+    ('Detergente ropa',       'lavanderia', 30, false),
+    ('Suavizante',            'lavanderia', 30, false)
+ON CONFLICT DO NOTHING;
+
 -- Datos de ejemplo
 INSERT INTO tasks (name, description, frequency_type, frequency_value, is_active) VALUES
     ('Barrer la cocina',      'Incluir debajo de la nevera',             'daily',    1,  true),

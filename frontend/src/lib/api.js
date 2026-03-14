@@ -93,3 +93,30 @@ export async function updateProfile(id, updates) {
 export async function deleteProfile(id) {
   return request(`/profiles/${id}`, { method: 'DELETE' })
 }
+
+// --- Products ---
+
+export async function fetchProducts(category) {
+  const params = category ? `?category=${encodeURIComponent(category)}` : ''
+  return request(`/products${params}`)
+}
+
+export async function fetchOutOfStockProducts() {
+  return request('/products?out_of_stock=true')
+}
+
+export async function createProduct(product) {
+  return request('/products', { method: 'POST', body: JSON.stringify(product) })
+}
+
+export async function updateProduct(id, updates) {
+  return request(`/products/${id}`, { method: 'PATCH', body: JSON.stringify(updates) })
+}
+
+export async function purchaseProduct(id) {
+  return request(`/products/${id}/purchase`, { method: 'POST' })
+}
+
+export async function deleteProduct(id) {
+  return request(`/products/${id}`, { method: 'DELETE' })
+}
