@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { getImageUrl } from '../lib/api'
 
 const FREQ_ICONS = {
   daily: (
@@ -139,6 +140,21 @@ export default function TaskCard({ task, onComplete }) {
           <p className="font-body text-[13px] mt-0.5 truncate" style={{ color: 'var(--bark-300)' }}>
             {task.description}
           </p>
+        )}
+        {task.product_name && (
+          <div className="flex items-center gap-2 mt-1.5">
+            {task.product_image && (
+              <img
+                src={getImageUrl(task.product_image)}
+                alt={task.product_name}
+                className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
+                style={{ border: '1px solid rgba(196,184,166,0.3)' }}
+              />
+            )}
+            <span className="font-body text-[12px] font-medium" style={{ color: 'var(--bark-400)' }}>
+              🧴 {task.product_name}
+            </span>
+          </div>
         )}
         <div className="flex items-center gap-2 mt-1.5">
           <span
