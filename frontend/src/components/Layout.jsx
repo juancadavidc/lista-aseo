@@ -55,6 +55,20 @@ export default function Layout() {
               Tareas
             </NavLink>
             <NavLink
+              to="/products"
+              className={({ isActive }) =>
+                `px-3.5 py-1.5 rounded-lg text-[13px] font-medium font-body transition-all duration-200 ${
+                  isActive ? 'shadow-sm' : 'hover:opacity-80'
+                }`
+              }
+              style={({ isActive }) => isActive
+                ? { background: 'var(--surface-elevated)', color: 'var(--clay-500)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
+                : { color: 'var(--bark-300)' }
+              }
+            >
+              Productos
+            </NavLink>
+            <NavLink
               to="/admin"
               className={({ isActive }) =>
                 `px-3.5 py-1.5 rounded-lg text-[13px] font-medium font-body transition-all duration-200 ${
