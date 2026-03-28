@@ -5,6 +5,7 @@ import './index.css'
 import Home from './pages/Home'
 import Admin from './pages/Admin'
 import Products from './pages/Products'
+import ShoppingList from './pages/ShoppingList'
 import ProfileSelect from './pages/ProfileSelect'
 import Layout from './components/Layout'
 import { getActiveProfile } from './lib/profiles'
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route element={<RequireProfile><Layout /></RequireProfile>}>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<Products />} />
+          <Route path="/shopping" element={<ShoppingList />} />
           <Route path="/admin" element={<Admin />} />
         </Route>
       </Routes>

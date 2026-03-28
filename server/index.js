@@ -349,6 +349,76 @@ app.delete('/api/products/:id', async (req, res) => {
   }
 })
 
+// --- Shopping List ---
+
+// GET /api/shopping-items
+app.get('/api/shopping-items', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM shopping_items ORDER BY is_purchased, created_at DESC')
+    res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/shopping-items
+app.post('/api/shopping-items', async (req, res) => {
+  try {
+    const { name, note, added_by } = req.body
+    if (!name?.trim()) return res.status(400).json({ error: 'name is required' })
+    const { rows } = await pool.query(
+      'INSERT INTO shopping_items (name, note, added_by) VALUES ($1, $2, $3) RETURNING *',
+      [name.trim(), note?.trim() || null, added_by || null]
+    )
+    res.json(rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// PATCH /api/shopping-items/:id
+app.patch('/api/shopping-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const fields = req.body
+    const keys = Object.keys(fields)
+    if (keys.length === 0) return res.status(400).json({ error: 'No fields to update' })
+
+    const setClauses = keys.map((k, i) => `${k} = $${i + 2}`)
+    const values = keys.map(k => fields[k])
+
+    const { rows } = await pool.query(
+      `UPDATE shopping_items SET ${setClauses.join(', ')} WHERE id = $1 RETURNING *`,
+      [id, ...values]
+    )
+    if (rows.length === 0) return res.status(404).json({ error: 'Item not found' })
+    res.json(rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// DELETE /api/shopping-items/clear-purchased
+app.delete('/api/shopping-items/clear-purchased', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM shopping_items WHERE is_purchased = true')
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// DELETE /api/shopping-items/:id
+app.delete('/api/shopping-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    await pool.query('DELETE FROM shopping_items WHERE id = $1', [id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // Auto-migrate
 async function migrate() {
   try {
@@ -406,6 +476,19 @@ async function migrate() {
     `)
     await pool.query('CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)')
     await pool.query('CREATE INDEX IF NOT EXISTS idx_products_out_of_stock ON products(is_out_of_stock)')
+
+    // Create shopping_items table if missing
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS shopping_items (
+        id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        name         TEXT NOT NULL,
+        note         TEXT,
+        added_by     TEXT,
+        is_purchased BOOLEAN NOT NULL DEFAULT false,
+        created_at   TIMESTAMPTZ DEFAULT NOW()
+      )
+    `)
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_shopping_items_purchased ON shopping_items(is_purchased)')
   } catch (err) {
     console.error('Migration error:', err.message)
   }
