@@ -41,6 +41,17 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
 CREATE INDEX IF NOT EXISTS idx_products_out_of_stock ON products(is_out_of_stock);
 
+CREATE TABLE IF NOT EXISTS shopping_items (
+    id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name        TEXT NOT NULL,
+    note        TEXT,
+    added_by    TEXT,
+    is_purchased BOOLEAN NOT NULL DEFAULT false,
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_shopping_items_purchased ON shopping_items(is_purchased);
+
 -- Productos de ejemplo
 INSERT INTO products (name, category, reminder_frequency_days, is_out_of_stock) VALUES
     ('Jabon lavavajillas',    'limpieza',   30, false),

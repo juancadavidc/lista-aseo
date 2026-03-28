@@ -120,3 +120,25 @@ export async function purchaseProduct(id) {
 export async function deleteProduct(id) {
   return request(`/products/${id}`, { method: 'DELETE' })
 }
+
+// --- Shopping List ---
+
+export async function fetchShoppingItems() {
+  return request('/shopping-items')
+}
+
+export async function createShoppingItem(item) {
+  return request('/shopping-items', { method: 'POST', body: JSON.stringify(item) })
+}
+
+export async function updateShoppingItem(id, updates) {
+  return request(`/shopping-items/${id}`, { method: 'PATCH', body: JSON.stringify(updates) })
+}
+
+export async function deleteShoppingItem(id) {
+  return request(`/shopping-items/${id}`, { method: 'DELETE' })
+}
+
+export async function clearPurchasedItems() {
+  return request('/shopping-items/clear-purchased', { method: 'DELETE' })
+}
