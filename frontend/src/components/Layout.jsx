@@ -21,8 +21,8 @@ export default function Layout() {
 
       {/* Header */}
       <header className="glass-header sticky top-0 z-20 px-4">
-        <div className="max-w-lg mx-auto flex items-center justify-between h-14">
-          <NavLink to="/" className="flex items-center gap-2.5 group" end>
+        <div className="max-w-lg mx-auto flex items-center justify-between h-14 gap-2">
+          <NavLink to="/" className="flex items-center gap-2 group flex-shrink-0" end>
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105"
               style={{ background: 'linear-gradient(135deg, #6a9960 0%, #4d7a44 100%)' }}
@@ -32,17 +32,17 @@ export default function Layout() {
                 <path d="M9 22V12h6v10" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <h1 className="font-display text-lg" style={{ color: 'var(--bark-700)' }}>
+            <h1 className="font-display text-lg hidden sm:block" style={{ color: 'var(--bark-700)' }}>
               Casa Limpia
             </h1>
           </NavLink>
 
-          <div className="flex items-center gap-2">
-          <nav className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: 'rgba(196,184,166,0.15)' }}>
+          <div className="flex items-center gap-2 min-w-0">
+          <nav className="nav-scroll flex items-center gap-0.5 p-1 rounded-xl overflow-x-auto" style={{ background: 'rgba(196,184,166,0.15)', WebkitOverflowScrolling: 'touch' }}>
             <NavLink
               to="/"
               className={({ isActive }) =>
-                `px-3.5 py-1.5 rounded-lg text-[13px] font-medium font-body transition-all duration-200 ${
+                `px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[12px] sm:text-[13px] font-medium font-body transition-all duration-200 whitespace-nowrap ${
                   isActive ? 'shadow-sm' : 'hover:opacity-80'
                 }`
               }
@@ -57,7 +57,7 @@ export default function Layout() {
             <NavLink
               to="/products"
               className={({ isActive }) =>
-                `px-3.5 py-1.5 rounded-lg text-[13px] font-medium font-body transition-all duration-200 ${
+                `px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[12px] sm:text-[13px] font-medium font-body transition-all duration-200 whitespace-nowrap ${
                   isActive ? 'shadow-sm' : 'hover:opacity-80'
                 }`
               }
@@ -71,7 +71,7 @@ export default function Layout() {
             <NavLink
               to="/shopping"
               className={({ isActive }) =>
-                `px-3.5 py-1.5 rounded-lg text-[13px] font-medium font-body transition-all duration-200 ${
+                `px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[12px] sm:text-[13px] font-medium font-body transition-all duration-200 whitespace-nowrap ${
                   isActive ? 'shadow-sm' : 'hover:opacity-80'
                 }`
               }
@@ -85,7 +85,7 @@ export default function Layout() {
             <NavLink
               to="/admin"
               className={({ isActive }) =>
-                `px-3.5 py-1.5 rounded-lg text-[13px] font-medium font-body transition-all duration-200 ${
+                `px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[12px] sm:text-[13px] font-medium font-body transition-all duration-200 whitespace-nowrap ${
                   isActive ? 'shadow-sm' : 'hover:opacity-80'
                 }`
               }
@@ -102,7 +102,7 @@ export default function Layout() {
           {profile && (
             <button
               onClick={() => navigate('/profiles')}
-              className="flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-xl transition-all active:scale-95 hover:shadow-sm"
+              className="flex items-center gap-1.5 pl-1 pr-1 sm:pr-2.5 py-1 rounded-xl transition-all active:scale-95 hover:shadow-sm flex-shrink-0"
               style={{ background: 'var(--surface-elevated)', border: '1px solid rgba(196,184,166,0.2)' }}
               title="Cambiar perfil"
             >
