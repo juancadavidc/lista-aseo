@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import {
   fetchAllTasks, createTask, updateTask, deleteTask, resetTask,
   frequencyLabel, FREQUENCY_LABELS,
@@ -278,7 +279,7 @@ export default function Admin() {
       )}
 
       {/* Form modal */}
-      {showForm && (
+      {showForm && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 modal-backdrop"
           onClick={() => { setShowForm(false); setEditingTask(null) }}
@@ -297,7 +298,8 @@ export default function Admin() {
               onCancel={() => { setShowForm(false); setEditingTask(null) }}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* History modal */}

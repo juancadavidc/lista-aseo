@@ -16,6 +16,10 @@ export async function fetchActiveTasks() {
   return request('/tasks?active=true')
 }
 
+export async function fetchPendingTasks() {
+  return request('/tasks/pending')
+}
+
 export async function fetchAllTasks() {
   return request('/tasks')
 }

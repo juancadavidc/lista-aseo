@@ -3,6 +3,7 @@ import {
   createTask as apiCreateTask, updateTask as apiUpdateTask,
   deleteTask as apiDeleteTask, completeTask as apiCompleteTask,
   resetTask as apiResetTask, fetchCompletions, fetchTaskHistory as apiFetchTaskHistory,
+  fetchPendingTasks as apiFetchPendingTasks,
 } from './api'
 
 // --- Frequency helpers ---
@@ -60,21 +61,8 @@ export function frequencyLabel(task) {
 // --- API queries ---
 
 export async function fetchPendingTasks() {
-  const [tasks, completions] = await Promise.all([
-    fetchActiveTasks(),
-    fetchCompletions(),
-  ])
-
-  const lastCompletion = {}
-  for (const c of completions) {
-    if (!lastCompletion[c.task_id]) {
-      lastCompletion[c.task_id] = c.completed_at
-    }
-  }
-
-  return tasks
-    .filter(t => isTaskPending(t, lastCompletion[t.id]))
-    .map(t => ({ ...t, lastCompletedAt: lastCompletion[t.id] || null }))
+  const tasks = await apiFetchPendingTasks()
+  return tasks.map(t => ({ ...t, lastCompletedAt: t.last_completed_at || null }))
 }
 
 export async function completeTask(taskId, completedBy) {

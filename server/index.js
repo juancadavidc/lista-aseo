@@ -136,6 +136,30 @@ app.delete('/api/uploads/:filename', (req, res) => {
   res.json({ ok: true })
 })
 
+// GET /api/tasks/pending - tasks that are due (logic moved from frontend)
+app.get('/api/tasks/pending', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT t.*, c.last_completed_at
+      FROM tasks t
+      LEFT JOIN (
+        SELECT task_id, MAX(completed_at) AS last_completed_at
+        FROM completions
+        GROUP BY task_id
+      ) c ON t.id = c.task_id
+      WHERE t.is_active = true
+        AND (
+          c.last_completed_at IS NULL
+          OR NOW() >= c.last_completed_at + (t.frequency_value * INTERVAL '1 day')
+        )
+      ORDER BY t.name
+    `)
+    res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // GET /api/tasks - all tasks
 app.get('/api/tasks', async (req, res) => {
   try {

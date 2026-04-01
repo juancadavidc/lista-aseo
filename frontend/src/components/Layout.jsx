@@ -122,12 +122,12 @@ export default function Layout() {
       </header>
 
       {/* Page content */}
-      <main className="flex-1 max-w-lg mx-auto w-full px-4 py-6 relative z-10">
+      <main className="flex-1 max-w-lg mx-auto w-full px-4 py-6 relative">
         <Outlet />
       </main>
 
       {/* Footer */}
-      <footer className="max-w-lg mx-auto w-full px-4 py-5 text-center relative z-10">
+      <footer className="max-w-lg mx-auto w-full px-4 py-5 text-center relative">
         <p className="text-[11px] font-body font-medium tracking-wide uppercase" style={{ color: 'var(--bark-300)', letterSpacing: '0.08em' }}>
           Casa Limpia
         </p>

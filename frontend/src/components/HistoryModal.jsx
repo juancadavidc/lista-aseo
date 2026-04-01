@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { fetchTaskHistory } from '../lib/tasks'
 
 export default function HistoryModal({ task, onClose }) {
@@ -15,7 +16,7 @@ export default function HistoryModal({ task, onClose }) {
 
   if (!task) return null
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4 modal-backdrop"
       onClick={onClose}
@@ -102,6 +103,7 @@ export default function HistoryModal({ task, onClose }) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

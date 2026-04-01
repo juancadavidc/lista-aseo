@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import {
   fetchProducts, createProduct, updateProduct, deleteProduct, purchaseProduct,
 } from '../lib/api'
@@ -255,7 +256,7 @@ export default function Products() {
       )}
 
       {/* Form modal */}
-      {showForm && (
+      {showForm && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 modal-backdrop"
           onClick={() => { setShowForm(false); setEditingProduct(null) }}
@@ -274,7 +275,8 @@ export default function Products() {
               onCancel={() => { setShowForm(false); setEditingProduct(null) }}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

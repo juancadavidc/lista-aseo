@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { getProfiles, saveProfile, removeProfile, setActiveProfile, AVATARS, COLORS } from '../lib/profiles'
 
@@ -141,7 +142,7 @@ function ProfileFormModal({ profile, onSave, onDelete, onClose }) {
     onSave({ name: name.trim(), avatar, color })
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 modal-backdrop" onClick={onClose}>
       <div
         className="w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 fade-in"
@@ -267,6 +268,7 @@ function ProfileFormModal({ profile, onSave, onDelete, onClose }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
