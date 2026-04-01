@@ -158,6 +158,10 @@
   ::-webkit-scrollbar-thumb { background: rgba(158,139,114,0.3); border-radius: 10px; }
   ::-webkit-scrollbar-thumb:hover { background: rgba(158,139,114,0.5); }
 
+  /* Hide scrollbar on nav */
+  .nav-scroll::-webkit-scrollbar { display: none; }
+  .nav-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
   /* --- Toast --- */
   .toast-enter {
     animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
