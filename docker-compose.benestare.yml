@@ -1,0 +1,26 @@
+services:
+  api:
+    build: ./server
+    restart: unless-stopped
+    environment:
+      DB_HOST: 104.131.41.153
+      DB_PORT: 5432
+      DB_NAME: db-benestare
+      DB_USER: postgres
+      DB_PASSWORD: voQLyyZ5BgFLlwmcfLaOLfSGloMQqE8AFjj0FyiGzyZrI02QoN8DLNrnLGnzECPF
+      PORT: 3001
+    ports:
+      - "3002:3001"
+    volumes:
+      - uploads:/app/uploads
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "80"
+    depends_on:
+      - api
+
+volumes:
+  uploads:
