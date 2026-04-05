@@ -2,9 +2,15 @@ import { betterAuth } from 'better-auth'
 import { organization } from 'better-auth/plugins'
 
 export function createAuth(pool) {
+  const allowedHosts = (process.env.ALLOWED_HOSTS || '').split(',').map(h => h.trim()).filter(Boolean)
+  const fallbackURL = process.env.BETTER_AUTH_URL || 'http://localhost:5173'
+
   const config = {
     database: pool,
     basePath: '/api/auth',
+    baseURL: allowedHosts.length > 0
+      ? { allowedHosts, protocol: 'https', fallback: fallbackURL }
+      : fallbackURL,
     emailAndPassword: {
       enabled: true,
     },
