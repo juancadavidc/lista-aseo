@@ -60,7 +60,7 @@ app.use(express.json())
 app.use('/api/uploads', express.static(UPLOADS_DIR))
 
 // Mount Better Auth - handles /api/auth/* routes
-app.all('/api/auth/*splat', toNodeHandler(auth))
+app.all('/api/auth/*', toNodeHandler(auth))
 
 // --- Auth Middleware ---
 
