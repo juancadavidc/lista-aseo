@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchShoppingItems, createShoppingItem, updateShoppingItem, deleteShoppingItem, clearPurchasedItems } from '../lib/api'
-import { getActiveProfile } from '../lib/profiles'
 
 export default function ShoppingList() {
   const [items, setItems] = useState([])
@@ -11,8 +10,6 @@ export default function ShoppingList() {
   const [showNote, setShowNote] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
   const [toast, setToast] = useState(null)
-
-  const profile = getActiveProfile()
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -40,7 +37,6 @@ export default function ShoppingList() {
       await createShoppingItem({
         name: newName.trim(),
         note: newNote.trim() || null,
-        added_by: profile?.name || null,
       })
       setNewName('')
       setNewNote('')

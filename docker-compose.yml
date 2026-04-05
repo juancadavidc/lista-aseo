@@ -27,6 +27,9 @@ services:
       DB_USER: casalimpia
       DB_PASSWORD: casalimpia
       PORT: 3001
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-cambiar-este-secreto-en-produccion}
+      BETTER_AUTH_URL: http://api:3001
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
     ports:
       - "3001:3001"
     volumes:
