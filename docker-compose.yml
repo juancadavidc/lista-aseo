@@ -14,16 +14,16 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     volumes:
       - uploads:/app/uploads
 
   web:
     image: ghcr.io/juancadavidc/lista-aseo/web:latest
     restart: unless-stopped
-    ports:
-      - "80:80"
+    expose:
+      - "80"
     depends_on:
       - api
 
