@@ -14,7 +14,7 @@ export function createAuth(pool) {
         allowMemberToLeave: true,
       }),
     ],
-    trustedOrigins: (process.env.FRONTEND_URL || 'http://localhost:5173').split(','),
+    trustedOrigins: (process.env.FRONTEND_URL || 'http://localhost:5173').split(',').map(u => u.trim().replace(/\/+$/, '')),
     secret: process.env.BETTER_AUTH_SECRET || 'dev-secret-change-in-production',
   }
 
