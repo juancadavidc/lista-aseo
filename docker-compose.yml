@@ -10,7 +10,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       PORT: 3001
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://api-aseo.stack-less.com}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://home-care.stack-less.com}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
