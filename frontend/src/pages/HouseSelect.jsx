@@ -20,8 +20,13 @@ export default function HouseSelect() {
       setHouses(orgs.data || [])
 
       try {
-        const invs = await authClient.organization.listInvitations()
-        setInvitations((invs.data || []).filter(i => i.status === 'pending'))
+        const res = await fetch('/api/auth/organization/list-user-invitations', { credentials: 'include' })
+        if (res.ok) {
+          const invs = await res.json()
+          setInvitations((invs || []).filter(i => i.status === 'pending'))
+        } else {
+          setInvitations([])
+        }
       } catch {
         setInvitations([])
       }
