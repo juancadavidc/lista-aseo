@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchPendingTasks, completeTask, overdueLabel, frequencyLabel } from '../lib/tasks'
-import { getActiveProfile } from '../lib/profiles'
 import TaskCard from '../components/TaskCard'
 import ProgressRing from '../components/ProgressRing'
 
@@ -24,7 +23,7 @@ export default function Home() {
       )
     } catch (err) {
       console.error(err)
-      setError('No se pudo conectar con el servidor. Verifica que los servicios estén corriendo.')
+      setError('No se pudo conectar con el servidor. Verifica que los servicios esten corriendo.')
     } finally {
       setLoading(false)
     }
@@ -36,8 +35,7 @@ export default function Home() {
 
   async function handleComplete(taskId) {
     try {
-      const profile = getActiveProfile()
-      await completeTask(taskId, profile?.name)
+      await completeTask(taskId)
       setCompleted(prev => prev + 1)
       setTasks(prev => prev.filter(t => t.id !== taskId))
     } catch (err) {

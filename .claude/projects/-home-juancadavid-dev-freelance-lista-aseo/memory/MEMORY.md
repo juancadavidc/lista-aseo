@@ -1,0 +1,2 @@
+- [User Role](user_role.md) — Juan es el dueño del producto, yo actúo como CEO/CTO orquestador
+- [Project Casa Limpia](project_casa_limpia.md) — App multi-tenant de gestión de aseo del hogar

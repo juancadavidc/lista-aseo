@@ -1,16 +1,34 @@
+import { getActiveHouse } from './house'
+
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 async function request(path, options = {}) {
+  const house = getActiveHouse()
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(house ? { 'x-house-id': house.id } : {}),
+    ...options.headers,
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    credentials: 'include',
+    headers,
     ...options,
   })
+
+  if (res.status === 401) {
+    window.location.hash = '#/login'
+    throw new Error('Sesion expirada')
+  }
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw new Error(body.error || `HTTP ${res.status}`)
   }
   return res.json()
 }
+
+// --- Tasks ---
 
 export async function fetchActiveTasks() {
   return request('/tasks?active=true')
@@ -36,14 +54,16 @@ export async function deleteTask(id) {
   return request(`/tasks/${id}`, { method: 'DELETE' })
 }
 
+// --- Completions ---
+
 export async function fetchCompletions() {
   return request('/completions')
 }
 
-export async function completeTask(taskId, completedBy) {
+export async function completeTask(taskId) {
   return request('/completions', {
     method: 'POST',
-    body: JSON.stringify({ task_id: taskId, completed_at: new Date().toISOString(), completed_by: completedBy || null }),
+    body: JSON.stringify({ task_id: taskId, completed_at: new Date().toISOString() }),
   })
 }
 
@@ -58,12 +78,19 @@ export async function fetchTaskHistory(taskId, limit = 10) {
 // --- Product images ---
 
 export async function uploadProductImage(file) {
+  const house = getActiveHouse()
   const formData = new FormData()
   formData.append('image', file)
   const res = await fetch(`${API_BASE}/uploads`, {
     method: 'POST',
+    credentials: 'include',
+    headers: house ? { 'x-house-id': house.id } : {},
     body: formData,
   })
+  if (res.status === 401) {
+    window.location.hash = '#/login'
+    throw new Error('Sesion expirada')
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw new Error(body.error || `HTTP ${res.status}`)
@@ -78,24 +105,6 @@ export async function deleteProductImage(filename) {
 export function getImageUrl(filename) {
   if (!filename) return null
   return `${API_BASE}/uploads/${filename}`
-}
-
-// --- Profiles ---
-
-export async function fetchProfiles() {
-  return request('/profiles')
-}
-
-export async function createProfile(profile) {
-  return request('/profiles', { method: 'POST', body: JSON.stringify(profile) })
-}
-
-export async function updateProfile(id, updates) {
-  return request(`/profiles/${id}`, { method: 'PATCH', body: JSON.stringify(updates) })
-}
-
-export async function deleteProfile(id) {
-  return request(`/profiles/${id}`, { method: 'DELETE' })
 }
 
 // --- Products ---
@@ -145,4 +154,22 @@ export async function deleteShoppingItem(id) {
 
 export async function clearPurchasedItems() {
   return request('/shopping-items/clear-purchased', { method: 'DELETE' })
+}
+
+// --- House ---
+
+export async function fetchHouseMembers() {
+  return request('/houses/members')
+}
+
+export async function fetchHouseProfile() {
+  return request('/houses/profile')
+}
+
+export async function updateHouseProfile(data) {
+  return request('/houses/profile', { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export async function seedHouse() {
+  return request('/houses/seed', { method: 'POST' })
 }

@@ -1,48 +1,31 @@
 services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: casalimpia
-      POSTGRES_USER: casalimpia
-      POSTGRES_PASSWORD: casalimpia
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5433:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U casalimpia"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   api:
-    build: ./server
+    image: ghcr.io/juancadavidc/lista-aseo/api:latest
     restart: unless-stopped
     environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: casalimpia
-      DB_USER: casalimpia
-      DB_PASSWORD: casalimpia
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
       PORT: 3001
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: http://api:3001
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     ports:
       - "3001:3001"
     volumes:
       - uploads:/app/uploads
-    depends_on:
-      db:
-        condition: service_healthy
 
   web:
-    build: ./frontend
+    image: ghcr.io/juancadavidc/lista-aseo/web:latest
     restart: unless-stopped
     ports:
-      - "80"
+      - "80:80"
     depends_on:
       - api
 
 volumes:
-  pgdata:
   uploads:

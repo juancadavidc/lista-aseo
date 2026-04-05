@@ -44,7 +44,7 @@ export function overdueLabel(task, lastCompletedAt) {
   const h = Math.floor(dueSince / 3600000)
   const d = Math.floor(h / 24)
 
-  if (d >= 2) return `hace ${d} días`
+  if (d >= 2) return `hace ${d} dias`
   if (d === 1) return `desde ayer`
   if (h >= 2) return `hace ${h} horas`
   return `hace poco`
@@ -53,7 +53,7 @@ export function overdueLabel(task, lastCompletedAt) {
 export function frequencyLabel(task) {
   const base = FREQUENCY_LABELS[task.frequency_type] || task.frequency_type
   if (task.frequency_value && task.frequency_value !== FREQUENCY_DEFAULTS[task.frequency_type]) {
-    return `Cada ${task.frequency_value} días`
+    return `Cada ${task.frequency_value} dias`
   }
   return base
 }
@@ -65,8 +65,8 @@ export async function fetchPendingTasks() {
   return tasks.map(t => ({ ...t, lastCompletedAt: t.last_completed_at || null }))
 }
 
-export async function completeTask(taskId, completedBy) {
-  return apiCompleteTask(taskId, completedBy)
+export async function completeTask(taskId) {
+  return apiCompleteTask(taskId)
 }
 
 export async function fetchAllTasks() {

@@ -1,9 +1,49 @@
+import { useState, useEffect, useRef } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { getActiveProfile } from '../lib/profiles'
+import { authClient } from '../lib/auth'
+import { getActiveHouse, clearActiveHouse } from '../lib/house'
+import { fetchHouseProfile } from '../lib/api'
 
 export default function Layout() {
-  const profile = getActiveProfile()
   const navigate = useNavigate()
+  const house = getActiveHouse()
+  const { data: session } = authClient.useSession()
+  const [profile, setProfile] = useState(null)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    fetchHouseProfile().then(setProfile).catch(() => {})
+  }, [house?.id])
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  async function handleLogout() {
+    clearActiveHouse()
+    await authClient.signOut()
+    navigate('/login')
+  }
+
+  function handleSwitchHouse() {
+    clearActiveHouse()
+    navigate('/houses')
+  }
+
+  const navItems = [
+    { to: '/', label: 'Tareas', end: true, activeColor: 'var(--moss-500)' },
+    { to: '/products', label: 'Productos', activeColor: 'var(--clay-500)' },
+    { to: '/shopping', label: 'Compras', activeColor: 'var(--clay-500)' },
+    { to: '/admin', label: 'Admin', activeColor: 'var(--clay-500)' },
+    { to: '/house-settings', label: 'Casa', activeColor: 'var(--moss-500)' },
+  ]
 
   return (
     <div className="min-h-dvh flex flex-col bg-grain" style={{ background: 'var(--surface-base)' }}>
@@ -32,91 +72,89 @@ export default function Layout() {
                 <path d="M9 22V12h6v10" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <h1 className="font-display text-lg hidden sm:block" style={{ color: 'var(--bark-700)' }}>
-              Casa Limpia
-            </h1>
+            <div className="hidden sm:block">
+              <h1 className="font-display text-lg leading-none" style={{ color: 'var(--bark-700)' }}>
+                {house?.name || 'Casa Limpia'}
+              </h1>
+            </div>
           </NavLink>
 
           <div className="flex items-center gap-2 min-w-0">
-          <nav className="nav-scroll flex items-center gap-0.5 p-1 rounded-xl overflow-x-auto" style={{ background: 'rgba(196,184,166,0.15)', WebkitOverflowScrolling: 'touch' }}>
-            <NavLink
-              to="/"
-              className={({ isActive }) =>
-                `px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[12px] sm:text-[13px] font-medium font-body transition-all duration-200 whitespace-nowrap ${
-                  isActive ? 'shadow-sm' : 'hover:opacity-80'
-                }`
-              }
-              style={({ isActive }) => isActive
-                ? { background: 'var(--surface-elevated)', color: 'var(--moss-500)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
-                : { color: 'var(--bark-300)' }
-              }
-              end
-            >
-              Tareas
-            </NavLink>
-            <NavLink
-              to="/products"
-              className={({ isActive }) =>
-                `px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[12px] sm:text-[13px] font-medium font-body transition-all duration-200 whitespace-nowrap ${
-                  isActive ? 'shadow-sm' : 'hover:opacity-80'
-                }`
-              }
-              style={({ isActive }) => isActive
-                ? { background: 'var(--surface-elevated)', color: 'var(--clay-500)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
-                : { color: 'var(--bark-300)' }
-              }
-            >
-              Productos
-            </NavLink>
-            <NavLink
-              to="/shopping"
-              className={({ isActive }) =>
-                `px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[12px] sm:text-[13px] font-medium font-body transition-all duration-200 whitespace-nowrap ${
-                  isActive ? 'shadow-sm' : 'hover:opacity-80'
-                }`
-              }
-              style={({ isActive }) => isActive
-                ? { background: 'var(--surface-elevated)', color: 'var(--clay-500)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
-                : { color: 'var(--bark-300)' }
-              }
-            >
-              Compras
-            </NavLink>
-            <NavLink
-              to="/admin"
-              className={({ isActive }) =>
-                `px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[12px] sm:text-[13px] font-medium font-body transition-all duration-200 whitespace-nowrap ${
-                  isActive ? 'shadow-sm' : 'hover:opacity-80'
-                }`
-              }
-              style={({ isActive }) => isActive
-                ? { background: 'var(--surface-elevated)', color: 'var(--clay-500)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
-                : { color: 'var(--bark-300)' }
-              }
-            >
-              Admin
-            </NavLink>
-          </nav>
+            <nav className="nav-scroll flex items-center gap-0.5 p-1 rounded-xl overflow-x-auto" style={{ background: 'rgba(196,184,166,0.15)', WebkitOverflowScrolling: 'touch' }}>
+              {navItems.map(item => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-medium font-body transition-all duration-200 whitespace-nowrap ${
+                      isActive ? 'shadow-sm' : 'hover:opacity-80'
+                    }`
+                  }
+                  style={({ isActive }) => isActive
+                    ? { background: 'var(--surface-elevated)', color: item.activeColor, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
+                    : { color: 'var(--bark-300)' }
+                  }
+                  end={item.end}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
 
-          {/* Profile avatar */}
-          {profile && (
-            <button
-              onClick={() => navigate('/profiles')}
-              className="flex items-center gap-1.5 pl-1 pr-1 sm:pr-2.5 py-1 rounded-xl transition-all active:scale-95 hover:shadow-sm flex-shrink-0"
-              style={{ background: 'var(--surface-elevated)', border: '1px solid rgba(196,184,166,0.2)' }}
-              title="Cambiar perfil"
-            >
-              <div
-                className="w-7 h-7 rounded-full flex items-center justify-center text-sm"
-                style={{ background: profile.color + '22', border: `2px solid ${profile.color}` }}
+            {/* User avatar with dropdown */}
+            <div className="relative flex-shrink-0" ref={dropdownRef}>
+              <button
+                onClick={() => setShowDropdown(!showDropdown)}
+                className="flex items-center gap-1.5 pl-1 pr-1 sm:pr-2.5 py-1 rounded-xl transition-all active:scale-95 hover:shadow-sm"
+                style={{ background: 'var(--surface-elevated)', border: '1px solid rgba(196,184,166,0.2)' }}
               >
-                {profile.avatar}
-              </div>
-              <span className="font-body text-[12px] font-semibold hidden sm:inline" style={{ color: 'var(--bark-500)' }}>
-                {profile.name}
-              </span>
-            </button>
-          )}
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-sm"
+                  style={{ background: (profile?.color || '#6a9960') + '22', border: `2px solid ${profile?.color || '#6a9960'}` }}
+                >
+                  {profile?.avatar || '🧑'}
+                </div>
+                <span className="font-body text-[12px] font-semibold hidden sm:inline" style={{ color: 'var(--bark-500)' }}>
+                  {session?.user?.name || ''}
+                </span>
+              </button>
+
+              {showDropdown && (
+                <div
+                  className="absolute right-0 top-full mt-2 w-48 rounded-xl overflow-hidden shadow-lg fade-in z-30"
+                  style={{ background: 'var(--surface-card)', border: '1px solid rgba(196,184,166,0.25)' }}
+                >
+                  <button
+                    onClick={() => { setShowDropdown(false); navigate('/house-settings') }}
+                    className="w-full px-4 py-2.5 text-left font-body text-[13px] font-medium transition-all hover:opacity-80"
+                    style={{ color: 'var(--bark-700)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(196,184,166,0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    Mi perfil
+                  </button>
+                  <button
+                    onClick={() => { setShowDropdown(false); handleSwitchHouse() }}
+                    className="w-full px-4 py-2.5 text-left font-body text-[13px] font-medium transition-all hover:opacity-80"
+                    style={{ color: 'var(--bark-700)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(196,184,166,0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    Cambiar casa
+                  </button>
+                  <div style={{ borderTop: '1px solid rgba(196,184,166,0.2)' }} />
+                  <button
+                    onClick={() => { setShowDropdown(false); handleLogout() }}
+                    className="w-full px-4 py-2.5 text-left font-body text-[13px] font-medium transition-all hover:opacity-80"
+                    style={{ color: 'var(--clay-500)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(184,90,58,0.04)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    Cerrar sesion
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -129,7 +167,7 @@ export default function Layout() {
       {/* Footer */}
       <footer className="max-w-lg mx-auto w-full px-4 py-5 text-center relative">
         <p className="text-[11px] font-body font-medium tracking-wide uppercase" style={{ color: 'var(--bark-300)', letterSpacing: '0.08em' }}>
-          Casa Limpia
+          {house?.name || 'Casa Limpia'}
         </p>
       </footer>
     </div>

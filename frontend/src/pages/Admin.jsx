@@ -4,8 +4,7 @@ import {
   fetchAllTasks, createTask, updateTask, deleteTask, resetTask,
   frequencyLabel, FREQUENCY_LABELS,
 } from '../lib/tasks'
-import { getImageUrl } from '../lib/api'
-import { getProfiles, removeProfile, getActiveProfile, clearActiveProfile, AVATARS, COLORS } from '../lib/profiles'
+import { getImageUrl, fetchHouseMembers } from '../lib/api'
 import TaskForm from '../components/TaskForm'
 import HistoryModal from '../components/HistoryModal'
 
@@ -42,29 +41,11 @@ export default function Admin() {
   const [resettingId, setResettingId] = useState(null)
   const [historyTask, setHistoryTask] = useState(null)
   const [toast, setToast] = useState(null)
-  const [profiles, setProfilesList] = useState([])
-  const [editingProfileId, setEditingProfileId] = useState(null)
-  const [deletingProfileId, setDeletingProfileId] = useState(null)
+  const [members, setMembers] = useState([])
 
   useEffect(() => {
-    getProfiles().then(setProfilesList).catch(() => {})
+    fetchHouseMembers().then(setMembers).catch(() => {})
   }, [])
-
-  async function handleDeleteProfile(id) {
-    if (deletingProfileId === id) {
-      try {
-        await removeProfile(id)
-        setProfilesList(prev => prev.filter(p => p.id !== id))
-        const active = getActiveProfile()
-        if (active?.id === id) clearActiveProfile()
-        showToast('Perfil eliminado', 'warning')
-      } catch { showToast('Error al eliminar perfil', 'error') }
-      finally { setDeletingProfileId(null) }
-    } else {
-      setDeletingProfileId(id)
-      setTimeout(() => setDeletingProfileId(null), 3000)
-    }
-  }
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -204,42 +185,35 @@ export default function Admin() {
         ))}
       </div>
 
-      {/* Profiles section */}
+      {/* Members section */}
       <div className="mb-8">
-        <h3 className="font-display text-lg mb-3" style={{ color: 'var(--bark-700)' }}>Perfiles</h3>
-        {profiles.length === 0 ? (
+        <h3 className="font-display text-lg mb-3" style={{ color: 'var(--bark-700)' }}>Miembros de la casa</h3>
+        {members.length === 0 ? (
           <p className="font-body text-sm" style={{ color: 'var(--bark-300)' }}>
-            No hay perfiles. Crea uno desde la pantalla de inicio.
+            Sin miembros.
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {profiles.map(p => (
+            {members.map(m => (
               <div
-                key={p.id}
+                key={m.userId}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl"
                 style={{ background: 'var(--surface-card)', border: '1px solid rgba(196,184,166,0.25)' }}
               >
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
-                  style={{ background: p.color + '22', border: `2px solid ${p.color}` }}
+                  style={{ background: m.color + '22', border: `2px solid ${m.color}` }}
                 >
-                  {p.avatar}
+                  {m.avatar}
                 </div>
-                <span className="font-body font-semibold text-[13px]" style={{ color: 'var(--bark-700)' }}>{p.name}</span>
-                <button
-                  onClick={() => handleDeleteProfile(p.id)}
-                  className="ml-1 w-6 h-6 rounded-md flex items-center justify-center transition-all"
-                  style={{ color: deletingProfileId === p.id ? 'var(--clay-500)' : 'var(--bark-300)', background: deletingProfileId === p.id ? 'rgba(184,90,58,0.08)' : 'transparent' }}
-                  title={deletingProfileId === p.id ? 'Confirmar' : 'Eliminar'}
-                >
-                  {deletingProfileId === p.id ? (
-                    <span className="font-body font-bold text-[9px]">?</span>
-                  ) : (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M18 6L6 18M6 6l12 12"/>
-                    </svg>
-                  )}
-                </button>
+                <span className="font-body font-semibold text-[13px]" style={{ color: 'var(--bark-700)' }}>{m.name}</span>
+                <span className="font-body text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                  style={{
+                    background: m.role === 'owner' ? 'rgba(184,90,58,0.1)' : m.role === 'admin' ? 'rgba(91,130,184,0.1)' : 'rgba(106,153,96,0.1)',
+                    color: m.role === 'owner' ? 'var(--clay-500)' : m.role === 'admin' ? '#5b82b8' : 'var(--moss-500)',
+                  }}>
+                  {m.role === 'owner' ? 'Dueno' : m.role === 'admin' ? 'Admin' : 'Miembro'}
+                </span>
               </div>
             ))}
           </div>
