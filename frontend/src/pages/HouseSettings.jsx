@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { authClient } from '../lib/auth'
-import { getActiveHouse, clearActiveHouse, AVATARS, COLORS } from '../lib/house'
+import { getActiveHouse, setActiveHouse, clearActiveHouse, AVATARS, COLORS } from '../lib/house'
 import { fetchHouseMembers, fetchHouseProfile, updateHouseProfile } from '../lib/api'
 
 export default function HouseSettings() {
@@ -18,6 +18,9 @@ export default function HouseSettings() {
   const [toast, setToast] = useState(null)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
   const [removingId, setRemovingId] = useState(null)
+  const [editingName, setEditingName] = useState(false)
+  const [houseName, setHouseName] = useState(house?.name || '')
+  const [savingName, setSavingName] = useState(false)
   const { data: session } = authClient.useSession()
 
   const showToast = (msg, type = 'success') => {
@@ -107,8 +110,35 @@ export default function HouseSettings() {
     navigate('/houses')
   }
 
+  async function handleRenameSave() {
+    const trimmed = houseName.trim()
+    if (!trimmed || trimmed === house?.name) {
+      setEditingName(false)
+      setHouseName(house?.name || '')
+      return
+    }
+    setSavingName(true)
+    try {
+      const result = await authClient.organization.update({
+        data: { name: trimmed },
+        organizationId: house.id,
+      })
+      if (result.error) {
+        showToast(result.error.message || 'Error al renombrar', 'error')
+      } else {
+        setActiveHouse({ ...house, name: trimmed })
+        showToast('Nombre actualizado')
+      }
+    } catch (err) {
+      showToast(err.message || 'Error al renombrar', 'error')
+    } finally {
+      setSavingName(false)
+      setEditingName(false)
+    }
+  }
+
   const roleLabel = (role) => {
-    if (role === 'owner') return 'Dueno'
+    if (role === 'owner') return 'Dueño'
     if (role === 'admin') return 'Admin'
     return 'Miembro'
   }
@@ -149,9 +179,57 @@ export default function HouseSettings() {
         <p className="font-body text-[11px] font-semibold uppercase tracking-[0.1em] mb-1.5" style={{ color: 'var(--bark-300)' }}>
           Configuracion
         </p>
-        <h2 className="font-display text-[28px] leading-none" style={{ color: 'var(--bark-700)' }}>
-          {house?.name || 'Casa'}
-        </h2>
+        {editingName ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={houseName}
+              onChange={e => setHouseName(e.target.value)}
+              maxLength={50}
+              autoFocus
+              className="font-display text-[28px] leading-none outline-none px-2 py-1 rounded-xl flex-1 min-w-0"
+              style={{ color: 'var(--bark-700)', background: 'var(--surface-elevated)', border: '1.5px solid var(--moss-400)' }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleRenameSave()
+                if (e.key === 'Escape') { setEditingName(false); setHouseName(house?.name || '') }
+              }}
+            />
+            <button
+              onClick={handleRenameSave}
+              disabled={savingName}
+              className="px-3 py-1.5 rounded-lg font-body font-semibold text-[12px] text-white transition-all active:scale-95 disabled:opacity-50"
+              style={{ background: 'var(--moss-500)' }}
+            >
+              {savingName ? '...' : 'Guardar'}
+            </button>
+            <button
+              onClick={() => { setEditingName(false); setHouseName(house?.name || '') }}
+              className="px-3 py-1.5 rounded-lg font-body font-semibold text-[12px] transition-all active:scale-95"
+              style={{ color: 'var(--bark-400)' }}
+            >
+              Cancelar
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-[28px] leading-none" style={{ color: 'var(--bark-700)' }}>
+              {houseName || 'Casa'}
+            </h2>
+            {isOwnerOrAdmin && (
+              <button
+                onClick={() => setEditingName(true)}
+                className="p-1.5 rounded-lg transition-all active:scale-90"
+                style={{ color: 'var(--bark-300)' }}
+                title="Renombrar casa"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* My profile section */}
