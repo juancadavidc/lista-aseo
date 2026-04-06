@@ -17,6 +17,14 @@ export default function Layout() {
   }, [house?.id])
 
   useEffect(() => {
+    function handleProfileUpdated(e) {
+      setProfile(e.detail)
+    }
+    window.addEventListener('profileUpdated', handleProfileUpdated)
+    return () => window.removeEventListener('profileUpdated', handleProfileUpdated)
+  }, [])
+
+  useEffect(() => {
     function handleClickOutside(e) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setShowDropdown(false)

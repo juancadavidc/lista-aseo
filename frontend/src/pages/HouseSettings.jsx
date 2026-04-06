@@ -99,6 +99,7 @@ export default function HouseSettings() {
       const updated = await updateHouseProfile({ avatar, color })
       setMyProfile(updated)
       setShowProfileEdit(false)
+      window.dispatchEvent(new CustomEvent('profileUpdated', { detail: updated }))
       showToast('Perfil actualizado')
     } catch {
       showToast('Error al guardar perfil', 'error')
