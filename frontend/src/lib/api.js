@@ -134,6 +134,24 @@ export async function deleteProduct(id) {
   return request(`/products/${id}`, { method: 'DELETE' })
 }
 
+// --- Shopping Categories ---
+
+export async function fetchShoppingCategories() {
+  return request('/shopping-categories')
+}
+
+export async function createShoppingCategory(category) {
+  return request('/shopping-categories', { method: 'POST', body: JSON.stringify(category) })
+}
+
+export async function updateShoppingCategory(id, updates) {
+  return request(`/shopping-categories/${id}`, { method: 'PATCH', body: JSON.stringify(updates) })
+}
+
+export async function deleteShoppingCategory(id) {
+  return request(`/shopping-categories/${id}`, { method: 'DELETE' })
+}
+
 // --- Shopping List ---
 
 export async function fetchShoppingItems() {

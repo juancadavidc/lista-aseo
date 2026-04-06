@@ -6,6 +6,7 @@ import Home from './pages/Home'
 import Admin from './pages/Admin'
 import Products from './pages/Products'
 import ShoppingList from './pages/ShoppingList'
+import ShoppingAdmin from './pages/ShoppingAdmin'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import HouseSelect from './pages/HouseSelect'
@@ -54,6 +55,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<Products />} />
           <Route path="/shopping" element={<ShoppingList />} />
+          <Route path="/shopping/admin" element={<ShoppingAdmin />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/house-settings" element={<HouseSettings />} />
         </Route>
