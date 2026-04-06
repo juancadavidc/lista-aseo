@@ -144,7 +144,7 @@ export default function HouseSelect() {
                       {inv.organization?.name || 'Casa'}
                     </p>
                     <p className="font-body text-[12px]" style={{ color: 'var(--bark-300)' }}>
-                      Rol: {inv.role === 'owner' ? 'Dueno' : inv.role === 'admin' ? 'Admin' : 'Miembro'}
+                      Rol: {inv.role === 'owner' ? 'Dueño' : inv.role === 'admin' ? 'Admin' : 'Miembro'}
                     </p>
                   </div>
                   <div className="flex gap-2">

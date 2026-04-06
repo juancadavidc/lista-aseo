@@ -212,7 +212,7 @@ export default function Admin() {
                     background: m.role === 'owner' ? 'rgba(184,90,58,0.1)' : m.role === 'admin' ? 'rgba(91,130,184,0.1)' : 'rgba(106,153,96,0.1)',
                     color: m.role === 'owner' ? 'var(--clay-500)' : m.role === 'admin' ? '#5b82b8' : 'var(--moss-500)',
                   }}>
-                  {m.role === 'owner' ? 'Dueno' : m.role === 'admin' ? 'Admin' : 'Miembro'}
+                  {m.role === 'owner' ? 'Dueño' : m.role === 'admin' ? 'Admin' : 'Miembro'}
                 </span>
               </div>
             ))}
