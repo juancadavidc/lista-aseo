@@ -9,6 +9,7 @@ import crypto from 'crypto'
 import { fileURLToPath } from 'url'
 import { toNodeHandler } from 'better-auth/node'
 import { createAuth } from './auth.js'
+import webpush from 'web-push'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOADS_DIR = path.join(__dirname, 'uploads')
@@ -45,6 +46,17 @@ const pool = new Pool({
   user: process.env.DB_USER || 'casalimpia',
   password: process.env.DB_PASSWORD || 'casalimpia',
 })
+
+// --- Web Push ---
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || ''
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || ''
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    'mailto:casalimpia@example.com',
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  )
+}
 
 // --- Better Auth ---
 const auth = createAuth(pool)
@@ -208,6 +220,91 @@ app.post('/api/houses/seed', requireAuth, requireHouse, requireRole('owner', 'ad
   }
 })
 
+// --- Push Notifications ---
+
+// GET /api/push/vapid-key - public VAPID key for client subscription
+app.get('/api/push/vapid-key', (req, res) => {
+  res.json({ publicKey: VAPID_PUBLIC_KEY })
+})
+
+// POST /api/push/subscribe - save push subscription
+app.post('/api/push/subscribe', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const { endpoint, keys } = req.body
+    if (!endpoint || !keys?.p256dh || !keys?.auth) {
+      return res.status(400).json({ error: 'Suscripcion invalida' })
+    }
+    await pool.query(`
+      INSERT INTO push_subscriptions (user_id, organization_id, endpoint, keys_p256dh, keys_auth)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (endpoint, organization_id)
+      DO UPDATE SET keys_p256dh = EXCLUDED.keys_p256dh, keys_auth = EXCLUDED.keys_auth, user_id = EXCLUDED.user_id
+    `, [req.user.id, req.house.id, endpoint, keys.p256dh, keys.auth])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// DELETE /api/push/subscribe - remove push subscription
+app.delete('/api/push/subscribe', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const { endpoint } = req.body
+    if (!endpoint) return res.status(400).json({ error: 'endpoint requerido' })
+    await pool.query(
+      'DELETE FROM push_subscriptions WHERE endpoint = $1 AND organization_id = $2',
+      [endpoint, req.house.id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /api/push/status - check if current user has a push subscription for this house
+app.get('/api/push/status', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT COUNT(*) as count FROM push_subscriptions WHERE user_id = $1 AND organization_id = $2',
+      [req.user.id, req.house.id]
+    )
+    res.json({ subscribed: parseInt(rows[0].count) > 0 })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Helper: send push to all members of a house except the sender
+async function notifyHouseMembers(organizationId, excludeUserId, payload) {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return
+
+  try {
+    const { rows: subs } = await pool.query(
+      'SELECT * FROM push_subscriptions WHERE organization_id = $1 AND user_id != $2',
+      [organizationId, excludeUserId]
+    )
+
+    const notifications = subs.map(async (sub) => {
+      const subscription = {
+        endpoint: sub.endpoint,
+        keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth },
+      }
+      try {
+        await webpush.sendNotification(subscription, JSON.stringify(payload))
+      } catch (err) {
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          // Subscription expired, clean up
+          await pool.query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id])
+        }
+      }
+    })
+
+    await Promise.allSettled(notifications)
+  } catch {
+    // Don't fail the main request if push fails
+  }
+}
+
 // Health check
 app.get('/api/health', async (req, res) => {
   try {
@@ -355,7 +452,7 @@ app.post('/api/completions', requireAuth, requireHouse, async (req, res) => {
     const { task_id, completed_at } = req.body
     // Verify task belongs to this house
     const { rows: taskCheck } = await pool.query(
-      'SELECT id FROM tasks WHERE id = $1 AND organization_id = $2', [task_id, req.house.id]
+      'SELECT id, name FROM tasks WHERE id = $1 AND organization_id = $2', [task_id, req.house.id]
     )
     if (taskCheck.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' })
 
@@ -363,6 +460,15 @@ app.post('/api/completions', requireAuth, requireHouse, async (req, res) => {
       'INSERT INTO completions (task_id, completed_at, completed_by, user_id) VALUES ($1, $2, $3, $4) RETURNING *',
       [task_id, completed_at || new Date().toISOString(), req.user.name || null, req.user.id]
     )
+
+    // Notify other house members
+    const taskName = taskCheck[0].name
+    const userName = req.user.name || 'Alguien'
+    notifyHouseMembers(req.house.id, req.user.id, {
+      title: 'Tarea completada',
+      body: `${userName} completo "${taskName}"`,
+    })
+
     res.json(rows[0])
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -656,6 +762,22 @@ async function migrate() {
         UNIQUE(user_id, organization_id)
       )
     `)
+
+    // Push subscriptions table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        user_id         TEXT NOT NULL,
+        organization_id TEXT NOT NULL,
+        endpoint        TEXT NOT NULL,
+        keys_p256dh     TEXT NOT NULL,
+        keys_auth       TEXT NOT NULL,
+        created_at      TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(endpoint, organization_id)
+      )
+    `)
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_push_subs_org ON push_subscriptions(organization_id)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id, organization_id)')
 
     // Drop old profiles table is NOT done automatically - keep it for reference
     console.log('Migrations complete')

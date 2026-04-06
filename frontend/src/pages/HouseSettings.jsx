@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { authClient } from '../lib/auth'
 import { getActiveHouse, clearActiveHouse, AVATARS, COLORS } from '../lib/house'
 import { fetchHouseMembers, fetchHouseProfile, updateHouseProfile } from '../lib/api'
+import { isPushSupported, getPushStatus, subscribeToPush, unsubscribeFromPush } from '../lib/push'
 
 export default function HouseSettings() {
   const navigate = useNavigate()
@@ -18,6 +19,9 @@ export default function HouseSettings() {
   const [toast, setToast] = useState(null)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
   const [removingId, setRemovingId] = useState(null)
+  const [pushSupported] = useState(isPushSupported)
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushLoading, setPushLoading] = useState(false)
   const { data: session } = authClient.useSession()
 
   const showToast = (msg, type = 'success') => {
@@ -35,10 +39,33 @@ export default function HouseSettings() {
       setMyProfile(profileData)
       const me = membersData.find(m => m.userId === session?.user?.id)
       if (me) setMyRole(me.role)
+
+      if (pushSupported) {
+        getPushStatus().then(setPushEnabled).catch(() => {})
+      }
     } catch {
       showToast('Error al cargar datos', 'error')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleTogglePush() {
+    setPushLoading(true)
+    try {
+      if (pushEnabled) {
+        await unsubscribeFromPush()
+        setPushEnabled(false)
+        showToast('Notificaciones desactivadas')
+      } else {
+        await subscribeToPush()
+        setPushEnabled(true)
+        showToast('Notificaciones activadas')
+      }
+    } catch (err) {
+      showToast(err.message || 'Error con notificaciones', 'error')
+    } finally {
+      setPushLoading(false)
     }
   }
 
@@ -185,6 +212,46 @@ export default function HouseSettings() {
           </button>
         </div>
       </div>
+
+      {/* Push Notifications */}
+      {pushSupported && (
+        <div className="rounded-xl p-4 mb-6" style={{ background: 'var(--surface-card)', border: '1px solid rgba(196,184,166,0.25)' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: pushEnabled ? 'rgba(106,153,96,0.12)' : 'rgba(196,184,166,0.15)' }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={pushEnabled ? 'var(--moss-500)' : 'var(--bark-300)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+              </div>
+              <div>
+                <p className="font-body font-semibold text-[14px]" style={{ color: 'var(--bark-700)' }}>
+                  Notificaciones
+                </p>
+                <p className="font-body text-[11px]" style={{ color: 'var(--bark-300)' }}>
+                  {pushEnabled ? 'Recibiras avisos cuando completen tareas' : 'Activa para recibir avisos'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleTogglePush}
+              disabled={pushLoading}
+              className="relative w-12 h-7 rounded-full transition-all duration-300 flex-shrink-0"
+              style={{
+                background: pushEnabled ? 'var(--moss-500)' : 'rgba(196,184,166,0.3)',
+              }}
+            >
+              <div
+                className="absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-all duration-300"
+                style={{ left: pushEnabled ? '22px' : '2px' }}
+              />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Members */}
       <div className="mb-6">
