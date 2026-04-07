@@ -103,6 +103,87 @@ function requireRole(...roles) {
   }
 }
 
+// --- Super Admin Middleware ---
+
+async function requireSuperAdmin(req, res, next) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id FROM super_admins WHERE user_id = $1',
+      [req.user.id]
+    )
+    if (rows.length === 0) return res.status(403).json({ error: 'No tienes permisos de super admin' })
+    next()
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
+  }
+}
+
+// GET /api/super-admin/check - check if current user is super admin
+app.get('/api/super-admin/check', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id FROM super_admins WHERE user_id = $1',
+      [req.user.id]
+    )
+    res.json({ isSuperAdmin: rows.length > 0 })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /api/super-admin/stats - global app stats
+app.get('/api/super-admin/stats', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const [users, orgs, members, tasks, completions, recentCompletions, activeOrgs] = await Promise.all([
+      pool.query('SELECT COUNT(*) as count FROM "user"'),
+      pool.query('SELECT COUNT(*) as count FROM "organization"'),
+      pool.query('SELECT COUNT(*) as count FROM "member"'),
+      pool.query('SELECT COUNT(*) as count FROM tasks'),
+      pool.query('SELECT COUNT(*) as count FROM completions'),
+      pool.query(`
+        SELECT DATE(completed_at) as day, COUNT(*) as count
+        FROM completions
+        WHERE completed_at >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE(completed_at)
+        ORDER BY day
+      `),
+      pool.query(`
+        SELECT o.id, o.name, o.slug, COUNT(DISTINCT m."userId") as member_count,
+               COUNT(DISTINCT t.id) as task_count,
+               MAX(c.completed_at) as last_activity
+        FROM "organization" o
+        LEFT JOIN "member" m ON m."organizationId" = o.id
+        LEFT JOIN tasks t ON t.organization_id = o.id
+        LEFT JOIN completions c ON c.task_id = t.id
+        GROUP BY o.id, o.name, o.slug
+        ORDER BY last_activity DESC NULLS LAST
+      `),
+    ])
+
+    res.json({
+      totalUsers: parseInt(users.rows[0].count),
+      totalOrganizations: parseInt(orgs.rows[0].count),
+      totalMembers: parseInt(members.rows[0].count),
+      totalTasks: parseInt(tasks.rows[0].count),
+      totalCompletions: parseInt(completions.rows[0].count),
+      completionsLast30Days: recentCompletions.rows.map(r => ({
+        day: r.day,
+        count: parseInt(r.count),
+      })),
+      organizations: activeOrgs.rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        slug: r.slug,
+        memberCount: parseInt(r.member_count),
+        taskCount: parseInt(r.task_count),
+        lastActivity: r.last_activity,
+      })),
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // --- House Member Profiles ---
 
 // GET /api/houses/members - list members with profiles
@@ -746,7 +827,15 @@ async function migrate() {
       )
     `)
 
-    // Drop old profiles table is NOT done automatically - keep it for reference
+    // Super admins table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS super_admins (
+        id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        user_id    TEXT NOT NULL UNIQUE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `)
+
     console.log('Migrations complete')
   } catch (err) {
     console.error('Migration error:', err.message)

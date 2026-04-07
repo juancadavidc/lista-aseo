@@ -11,6 +11,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import HouseSelect from './pages/HouseSelect'
 import HouseSettings from './pages/HouseSettings'
+import SuperAdmin from './pages/SuperAdmin'
 import Layout from './components/Layout'
 import { authClient } from './lib/auth'
 import { getActiveHouse } from './lib/house'
@@ -49,6 +50,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
         {/* Authenticated, no house selected */}
         <Route path="/houses" element={<RequireAuth><HouseSelect /></RequireAuth>} />
+        <Route path="/super-admin" element={<RequireAuth><SuperAdmin /></RequireAuth>} />
 
         {/* Authenticated + house selected */}
         <Route element={<RequireAuth><RequireHouse><Layout /></RequireHouse></RequireAuth>}>

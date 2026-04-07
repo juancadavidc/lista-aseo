@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { authClient } from '../lib/auth'
 import { getActiveHouse, clearActiveHouse } from '../lib/house'
-import { fetchHouseProfile } from '../lib/api'
+import { fetchHouseProfile, checkSuperAdmin } from '../lib/api'
 
 export default function Layout() {
   const navigate = useNavigate()
@@ -10,10 +10,12 @@ export default function Layout() {
   const { data: session } = authClient.useSession()
   const [profile, setProfile] = useState(null)
   const [showDropdown, setShowDropdown] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const dropdownRef = useRef(null)
 
   useEffect(() => {
     fetchHouseProfile().then(setProfile).catch(() => {})
+    checkSuperAdmin().then(r => setIsSuperAdmin(r.isSuperAdmin)).catch(() => {})
   }, [house?.id])
 
   useEffect(() => {
@@ -141,6 +143,17 @@ export default function Layout() {
                   >
                     Mi perfil
                   </button>
+                  {isSuperAdmin && (
+                    <button
+                      onClick={() => { setShowDropdown(false); navigate('/super-admin') }}
+                      className="w-full px-4 py-2.5 text-left font-body text-[13px] font-medium transition-all hover:opacity-80"
+                      style={{ color: 'var(--moss-600)' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(106,153,96,0.06)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      Super Admin
+                    </button>
+                  )}
                   <button
                     onClick={() => { setShowDropdown(false); handleSwitchHouse() }}
                     className="w-full px-4 py-2.5 text-left font-body text-[13px] font-medium transition-all hover:opacity-80"
