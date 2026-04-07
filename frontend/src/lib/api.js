@@ -174,6 +174,16 @@ export async function clearPurchasedItems() {
   return request('/shopping-items/clear-purchased', { method: 'DELETE' })
 }
 
+// --- Super Admin ---
+
+export async function checkSuperAdmin() {
+  return request('/super-admin/check')
+}
+
+export async function fetchSuperAdminStats() {
+  return request('/super-admin/stats')
+}
+
 // --- House ---
 
 export async function fetchHouseMembers() {

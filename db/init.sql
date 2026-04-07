@@ -73,3 +73,9 @@ CREATE TABLE IF NOT EXISTS house_member_profiles (
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, organization_id)
 );
+
+CREATE TABLE IF NOT EXISTS super_admins (
+    id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id    TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
