@@ -655,8 +655,17 @@ app.get('/api/shopping-items', requireAuth, requireHouse, async (req, res) => {
       ORDER BY si.is_purchased, sc.sort_order NULLS LAST, si.created_at DESC
     `, [req.house.id])
     res.json(rows)
-  } catch (err) {
-    res.status(500).json({ error: err.message })
+  } catch {
+    // Fallback if category_id column or shopping_categories table doesn't exist yet
+    try {
+      const { rows } = await pool.query(
+        'SELECT * FROM shopping_items WHERE organization_id = $1 ORDER BY is_purchased, created_at DESC',
+        [req.house.id]
+      )
+      res.json(rows)
+    } catch (err) {
+      res.status(500).json({ error: err.message })
+    }
   }
 })
 

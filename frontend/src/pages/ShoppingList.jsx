@@ -25,16 +25,19 @@ export default function ShoppingList() {
   const loadData = useCallback(async () => {
     try {
       setError(null)
-      const [itemsData, catsData] = await Promise.all([
-        fetchShoppingItems(),
-        fetchShoppingCategories(),
-      ])
+      const itemsData = await fetchShoppingItems()
       setItems(itemsData)
-      setCategories(catsData)
     } catch {
       setError('No se pudo cargar la lista de compras.')
     } finally {
       setLoading(false)
+    }
+    // Load categories independently - don't block items if this fails
+    try {
+      const catsData = await fetchShoppingCategories()
+      setCategories(catsData)
+    } catch {
+      setCategories([])
     }
   }, [])
 
@@ -204,43 +207,45 @@ export default function ShoppingList() {
         </div>
 
         {/* Category selector + note */}
-        <div className="flex gap-2 mt-2">
-          {categories.length > 0 && (
-            <select
-              value={newCategoryId}
-              onChange={e => setNewCategoryId(e.target.value)}
-              className="px-3 py-2 rounded-xl font-body text-[13px] outline-none transition-all appearance-none cursor-pointer"
-              style={{
-                background: 'var(--surface-card)',
-                border: '1.5px solid rgba(196,184,166,0.3)',
-                color: newCategoryId ? 'var(--bark-700)' : 'var(--bark-300)',
-                minWidth: 0,
-                flex: showNote ? '0 0 auto' : '1',
-              }}
-            >
-              <option value="">Sin categoria</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.emoji} {cat.name}</option>
-              ))}
-            </select>
-          )}
-          {showNote && (
-            <input
-              type="text"
-              value={newNote}
-              onChange={e => setNewNote(e.target.value)}
-              placeholder="Nota (ej: marca, cantidad...)"
-              className="flex-1 px-3.5 py-2 rounded-xl font-body text-[13px] outline-none transition-all"
-              style={{
-                background: 'var(--surface-card)',
-                border: '1.5px solid rgba(196,184,166,0.3)',
-                color: 'var(--bark-700)',
-              }}
-              onFocus={e => e.target.style.borderColor = 'var(--moss-400)'}
-              onBlur={e => e.target.style.borderColor = 'rgba(196,184,166,0.3)'}
-            />
-          )}
-        </div>
+        {(categories.length > 0 || showNote) && (
+          <div className="flex gap-2 mt-2">
+            {categories.length > 0 && (
+              <select
+                value={newCategoryId}
+                onChange={e => setNewCategoryId(e.target.value)}
+                className="px-3 py-2 rounded-xl font-body text-[13px] outline-none transition-all appearance-none cursor-pointer"
+                style={{
+                  background: 'var(--surface-card)',
+                  border: '1.5px solid rgba(196,184,166,0.3)',
+                  color: newCategoryId ? 'var(--bark-700)' : 'var(--bark-300)',
+                  minWidth: 0,
+                  flex: showNote ? '0 0 auto' : '1',
+                }}
+              >
+                <option value="">Sin categoria</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.emoji} {cat.name}</option>
+                ))}
+              </select>
+            )}
+            {showNote && (
+              <input
+                type="text"
+                value={newNote}
+                onChange={e => setNewNote(e.target.value)}
+                placeholder="Nota (ej: marca, cantidad...)"
+                className="flex-1 px-3.5 py-2 rounded-xl font-body text-[13px] outline-none transition-all"
+                style={{
+                  background: 'var(--surface-card)',
+                  border: '1.5px solid rgba(196,184,166,0.3)',
+                  color: 'var(--bark-700)',
+                }}
+                onFocus={e => e.target.style.borderColor = 'var(--moss-400)'}
+                onBlur={e => e.target.style.borderColor = 'rgba(196,184,166,0.3)'}
+              />
+            )}
+          </div>
+        )}
       </form>
 
       {/* Pending items - grouped by category */}
