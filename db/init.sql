@@ -38,18 +38,31 @@ CREATE INDEX IF NOT EXISTS idx_products_out_of_stock ON products(is_out_of_stock
 CREATE INDEX IF NOT EXISTS idx_tasks_org ON tasks(organization_id);
 CREATE INDEX IF NOT EXISTS idx_products_org ON products(organization_id);
 
+CREATE TABLE IF NOT EXISTS shopping_categories (
+    id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name            TEXT NOT NULL,
+    emoji           TEXT NOT NULL DEFAULT '📦',
+    sort_order      INTEGER NOT NULL DEFAULT 0,
+    organization_id TEXT NOT NULL,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_shopping_categories_org ON shopping_categories(organization_id);
+
 CREATE TABLE IF NOT EXISTS shopping_items (
     id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name        TEXT NOT NULL,
     note        TEXT,
     added_by    TEXT,
     is_purchased BOOLEAN NOT NULL DEFAULT false,
+    category_id UUID REFERENCES shopping_categories(id) ON DELETE SET NULL,
     organization_id TEXT,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_shopping_items_purchased ON shopping_items(is_purchased);
 CREATE INDEX IF NOT EXISTS idx_shopping_items_org ON shopping_items(organization_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_items_category ON shopping_items(category_id);
 
 CREATE TABLE IF NOT EXISTS house_member_profiles (
     id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,

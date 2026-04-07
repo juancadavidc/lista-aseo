@@ -493,15 +493,86 @@ app.delete('/api/products/:id', requireAuth, requireHouse, async (req, res) => {
   }
 })
 
+// --- Shopping Categories (scoped by house) ---
+
+// GET /api/shopping-categories
+app.get('/api/shopping-categories', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM shopping_categories WHERE organization_id = $1 ORDER BY sort_order, name',
+      [req.house.id]
+    )
+    res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/shopping-categories
+app.post('/api/shopping-categories', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const { name, emoji } = req.body
+    if (!name?.trim()) return res.status(400).json({ error: 'name is required' })
+    // Get next sort_order
+    const { rows: maxRows } = await pool.query(
+      'SELECT COALESCE(MAX(sort_order), -1) + 1 as next_order FROM shopping_categories WHERE organization_id = $1',
+      [req.house.id]
+    )
+    const { rows } = await pool.query(
+      'INSERT INTO shopping_categories (name, emoji, sort_order, organization_id) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name.trim(), emoji || '📦', maxRows[0].next_order, req.house.id]
+    )
+    res.json(rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// PATCH /api/shopping-categories/:id
+app.patch('/api/shopping-categories/:id', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const { id } = req.params
+    const fields = req.body
+    const keys = Object.keys(fields).filter(k => k !== 'organization_id' && k !== 'id')
+    if (keys.length === 0) return res.status(400).json({ error: 'No fields to update' })
+
+    const setClauses = keys.map((k, i) => `${k} = $${i + 3}`)
+    const values = keys.map(k => fields[k])
+
+    const { rows } = await pool.query(
+      `UPDATE shopping_categories SET ${setClauses.join(', ')} WHERE id = $1 AND organization_id = $2 RETURNING *`,
+      [id, req.house.id, ...values]
+    )
+    if (rows.length === 0) return res.status(404).json({ error: 'Category not found' })
+    res.json(rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// DELETE /api/shopping-categories/:id
+app.delete('/api/shopping-categories/:id', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const { id } = req.params
+    await pool.query('DELETE FROM shopping_categories WHERE id = $1 AND organization_id = $2', [id, req.house.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // --- Shopping List (scoped by house) ---
 
 // GET /api/shopping-items
 app.get('/api/shopping-items', requireAuth, requireHouse, async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      'SELECT * FROM shopping_items WHERE organization_id = $1 ORDER BY is_purchased, created_at DESC',
-      [req.house.id]
-    )
+    const { rows } = await pool.query(`
+      SELECT si.*, sc.name as category_name, sc.emoji as category_emoji
+      FROM shopping_items si
+      LEFT JOIN shopping_categories sc ON si.category_id = sc.id
+      WHERE si.organization_id = $1
+      ORDER BY si.is_purchased, sc.sort_order NULLS LAST, si.created_at DESC
+    `, [req.house.id])
     res.json(rows)
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -511,11 +582,11 @@ app.get('/api/shopping-items', requireAuth, requireHouse, async (req, res) => {
 // POST /api/shopping-items
 app.post('/api/shopping-items', requireAuth, requireHouse, async (req, res) => {
   try {
-    const { name, note } = req.body
+    const { name, note, category_id } = req.body
     if (!name?.trim()) return res.status(400).json({ error: 'name is required' })
     const { rows } = await pool.query(
-      'INSERT INTO shopping_items (name, note, added_by, organization_id) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name.trim(), note?.trim() || null, req.user.name || null, req.house.id]
+      'INSERT INTO shopping_items (name, note, added_by, category_id, organization_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [name.trim(), note?.trim() || null, req.user.name || null, category_id || null, req.house.id]
     )
     res.json(rows[0])
   } catch (err) {
@@ -613,17 +684,31 @@ async function migrate() {
     await pool.query('CREATE INDEX IF NOT EXISTS idx_products_out_of_stock ON products(is_out_of_stock)')
 
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS shopping_categories (
+        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        name            TEXT NOT NULL,
+        emoji           TEXT NOT NULL DEFAULT '📦',
+        sort_order      INTEGER NOT NULL DEFAULT 0,
+        organization_id TEXT NOT NULL,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      )
+    `)
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_shopping_categories_org ON shopping_categories(organization_id)')
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS shopping_items (
         id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
         name         TEXT NOT NULL,
         note         TEXT,
         added_by     TEXT,
         is_purchased BOOLEAN NOT NULL DEFAULT false,
+        category_id  UUID REFERENCES shopping_categories(id) ON DELETE SET NULL,
         organization_id TEXT,
         created_at   TIMESTAMPTZ DEFAULT NOW()
       )
     `)
     await pool.query('CREATE INDEX IF NOT EXISTS idx_shopping_items_purchased ON shopping_items(is_purchased)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_shopping_items_category ON shopping_items(category_id)')
 
     // Migrations for existing installations
 
@@ -643,6 +728,10 @@ async function migrate() {
     await pool.query('CREATE INDEX IF NOT EXISTS idx_tasks_org ON tasks(organization_id)')
     await pool.query('CREATE INDEX IF NOT EXISTS idx_products_org ON products(organization_id)')
     await pool.query('CREATE INDEX IF NOT EXISTS idx_shopping_items_org ON shopping_items(organization_id)')
+
+    // Shopping categories support
+    await addColumnIfMissing('shopping_items', 'category_id', 'UUID REFERENCES shopping_categories(id) ON DELETE SET NULL')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_shopping_items_category ON shopping_items(category_id)')
 
     // House member profiles table
     await pool.query(`

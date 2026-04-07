@@ -1,12 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
-import { fetchShoppingItems, createShoppingItem, updateShoppingItem, deleteShoppingItem, clearPurchasedItems } from '../lib/api'
+import { Link } from 'react-router-dom'
+import {
+  fetchShoppingItems, createShoppingItem, updateShoppingItem,
+  deleteShoppingItem, clearPurchasedItems, fetchShoppingCategories,
+} from '../lib/api'
 
 export default function ShoppingList() {
   const [items, setItems] = useState([])
+  const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [newName, setNewName] = useState('')
   const [newNote, setNewNote] = useState('')
+  const [newCategoryId, setNewCategoryId] = useState('')
   const [showNote, setShowNote] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
   const [toast, setToast] = useState(null)
@@ -16,11 +22,15 @@ export default function ShoppingList() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  const loadItems = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
       setError(null)
-      const data = await fetchShoppingItems()
-      setItems(data)
+      const [itemsData, catsData] = await Promise.all([
+        fetchShoppingItems(),
+        fetchShoppingCategories(),
+      ])
+      setItems(itemsData)
+      setCategories(catsData)
     } catch {
       setError('No se pudo cargar la lista de compras.')
     } finally {
@@ -28,7 +38,7 @@ export default function ShoppingList() {
     }
   }, [])
 
-  useEffect(() => { loadItems() }, [loadItems])
+  useEffect(() => { loadData() }, [loadData])
 
   async function handleAdd(e) {
     e.preventDefault()
@@ -37,12 +47,13 @@ export default function ShoppingList() {
       await createShoppingItem({
         name: newName.trim(),
         note: newNote.trim() || null,
+        category_id: newCategoryId || null,
       })
       setNewName('')
       setNewNote('')
       setShowNote(false)
       showToast('Agregado a la lista')
-      loadItems()
+      loadData()
     } catch {
       showToast('Error al agregar', 'error')
     }
@@ -51,7 +62,7 @@ export default function ShoppingList() {
   async function handleTogglePurchased(item) {
     try {
       await updateShoppingItem(item.id, { is_purchased: !item.is_purchased })
-      loadItems()
+      loadData()
     } catch {
       showToast('Error al actualizar', 'error')
     }
@@ -62,7 +73,7 @@ export default function ShoppingList() {
       try {
         await deleteShoppingItem(item.id)
         showToast('Eliminado', 'warning')
-        loadItems()
+        loadData()
       } catch { showToast('Error al eliminar', 'error') }
       finally { setDeletingId(null) }
     } else {
@@ -75,7 +86,7 @@ export default function ShoppingList() {
     try {
       await clearPurchasedItems()
       showToast('Lista limpiada')
-      loadItems()
+      loadData()
     } catch {
       showToast('Error al limpiar', 'error')
     }
@@ -83,6 +94,9 @@ export default function ShoppingList() {
 
   const pending = items.filter(i => !i.is_purchased)
   const purchased = items.filter(i => i.is_purchased)
+
+  // Group pending items by category
+  const grouped = groupByCategory(pending, categories)
 
   if (loading) {
     return (
@@ -123,6 +137,16 @@ export default function ShoppingList() {
           </h2>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            to="/shopping/admin"
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
+            style={{ background: 'rgba(196,184,166,0.15)', color: 'var(--bark-400)' }}
+            title="Administrar categorias"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+          </Link>
           <div className="px-3 py-1.5 rounded-xl text-center" style={{ background: 'rgba(184,90,58,0.06)', border: '1px solid rgba(184,90,58,0.15)' }}>
             <span className="font-display text-lg leading-none" style={{ color: 'var(--clay-500)' }}>{pending.length}</span>
             <span className="font-body text-[10px] font-semibold uppercase tracking-wider ml-1.5" style={{ color: 'var(--bark-300)' }}>pendientes</span>
@@ -178,25 +202,48 @@ export default function ShoppingList() {
             </svg>
           </button>
         </div>
-        {showNote && (
-          <input
-            type="text"
-            value={newNote}
-            onChange={e => setNewNote(e.target.value)}
-            placeholder="Nota opcional (ej: marca, cantidad...)"
-            className="w-full mt-2 px-3.5 py-2 rounded-xl font-body text-[13px] outline-none transition-all"
-            style={{
-              background: 'var(--surface-card)',
-              border: '1.5px solid rgba(196,184,166,0.3)',
-              color: 'var(--bark-700)',
-            }}
-            onFocus={e => e.target.style.borderColor = 'var(--moss-400)'}
-            onBlur={e => e.target.style.borderColor = 'rgba(196,184,166,0.3)'}
-          />
-        )}
+
+        {/* Category selector + note */}
+        <div className="flex gap-2 mt-2">
+          {categories.length > 0 && (
+            <select
+              value={newCategoryId}
+              onChange={e => setNewCategoryId(e.target.value)}
+              className="px-3 py-2 rounded-xl font-body text-[13px] outline-none transition-all appearance-none cursor-pointer"
+              style={{
+                background: 'var(--surface-card)',
+                border: '1.5px solid rgba(196,184,166,0.3)',
+                color: newCategoryId ? 'var(--bark-700)' : 'var(--bark-300)',
+                minWidth: 0,
+                flex: showNote ? '0 0 auto' : '1',
+              }}
+            >
+              <option value="">Sin categoria</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.emoji} {cat.name}</option>
+              ))}
+            </select>
+          )}
+          {showNote && (
+            <input
+              type="text"
+              value={newNote}
+              onChange={e => setNewNote(e.target.value)}
+              placeholder="Nota (ej: marca, cantidad...)"
+              className="flex-1 px-3.5 py-2 rounded-xl font-body text-[13px] outline-none transition-all"
+              style={{
+                background: 'var(--surface-card)',
+                border: '1.5px solid rgba(196,184,166,0.3)',
+                color: 'var(--bark-700)',
+              }}
+              onFocus={e => e.target.style.borderColor = 'var(--moss-400)'}
+              onBlur={e => e.target.style.borderColor = 'rgba(196,184,166,0.3)'}
+            />
+          )}
+        </div>
       </form>
 
-      {/* Pending items */}
+      {/* Pending items - grouped by category */}
       {pending.length === 0 && purchased.length === 0 ? (
         <div className="text-center py-12 fade-in">
           <div className="w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center text-2xl" style={{ background: 'rgba(106,153,96,0.08)' }}>
@@ -208,15 +255,34 @@ export default function ShoppingList() {
       ) : (
         <>
           {pending.length > 0 && (
-            <div className="flex flex-col gap-2 mb-6 stagger">
-              {pending.map(item => (
-                <ShoppingItem
-                  key={item.id}
-                  item={item}
-                  deletingId={deletingId}
-                  onToggle={handleTogglePurchased}
-                  onDelete={handleDelete}
-                />
+            <div className="mb-6">
+              {grouped.map(group => (
+                <div key={group.key} className="mb-4 last:mb-0">
+                  {/* Category header - only show if there are categories in use */}
+                  {(grouped.length > 1 || group.key !== '__none__') && (
+                    <div className="flex items-center gap-2 mb-2 px-1">
+                      <span className="text-sm">{group.emoji}</span>
+                      <span className="font-body text-[12px] font-semibold uppercase tracking-wider" style={{ color: 'var(--bark-400)' }}>
+                        {group.name}
+                      </span>
+                      <span className="font-body text-[11px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(196,184,166,0.15)', color: 'var(--bark-300)' }}>
+                        {group.items.length}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2 stagger">
+                    {group.items.map(item => (
+                      <ShoppingItem
+                        key={item.id}
+                        item={item}
+                        deletingId={deletingId}
+                        onToggle={handleTogglePurchased}
+                        onDelete={handleDelete}
+                        showCategoryBadge={false}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -244,6 +310,7 @@ export default function ShoppingList() {
                     deletingId={deletingId}
                     onToggle={handleTogglePurchased}
                     onDelete={handleDelete}
+                    showCategoryBadge={true}
                   />
                 ))}
               </div>
@@ -255,7 +322,35 @@ export default function ShoppingList() {
   )
 }
 
-function ShoppingItem({ item, deletingId, onToggle, onDelete }) {
+function groupByCategory(items, categories) {
+  const groups = []
+  const catMap = new Map()
+
+  // Group items by category_id
+  for (const item of items) {
+    const key = item.category_id || '__none__'
+    if (!catMap.has(key)) {
+      catMap.set(key, [])
+    }
+    catMap.get(key).push(item)
+  }
+
+  // Build ordered groups: categories first (by sort_order), then uncategorized
+  for (const cat of categories) {
+    if (catMap.has(cat.id)) {
+      groups.push({ key: cat.id, name: cat.name, emoji: cat.emoji, items: catMap.get(cat.id) })
+    }
+  }
+
+  // Uncategorized at the end
+  if (catMap.has('__none__')) {
+    groups.push({ key: '__none__', name: 'Sin categoria', emoji: '📋', items: catMap.get('__none__') })
+  }
+
+  return groups
+}
+
+function ShoppingItem({ item, deletingId, onToggle, onDelete, showCategoryBadge }) {
   const isDeleting = deletingId === item.id
   const timeAgo = formatTimeAgo(item.created_at)
 
@@ -298,10 +393,15 @@ function ShoppingItem({ item, deletingId, onToggle, onDelete }) {
           >
             {item.name}
           </p>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             {item.note && (
               <span className="font-body text-[11px]" style={{ color: 'var(--bark-300)' }}>
                 {item.note}
+              </span>
+            )}
+            {showCategoryBadge && item.category_name && (
+              <span className="font-body text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(106,153,96,0.1)', color: 'var(--moss-500)' }}>
+                {item.category_emoji} {item.category_name}
               </span>
             )}
             {item.added_by && (
