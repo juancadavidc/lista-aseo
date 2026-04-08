@@ -12,6 +12,7 @@ import Register from './pages/Register'
 import HouseSelect from './pages/HouseSelect'
 import HouseSettings from './pages/HouseSettings'
 import SuperAdmin from './pages/SuperAdmin'
+import Stats from './pages/Stats'
 import Layout from './components/Layout'
 import { authClient } from './lib/auth'
 import { getActiveHouse } from './lib/house'
@@ -57,6 +58,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/products" element={<Products />} />
           <Route path="/shopping" element={<ShoppingList />} />
           <Route path="/shopping/admin" element={<ShoppingAdmin />} />
+          <Route path="/stats" element={<Stats />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/house-settings" element={<HouseSettings />} />
           <Route path="/super-admin" element={<SuperAdmin />} />

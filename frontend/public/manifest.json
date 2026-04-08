@@ -1,0 +1,21 @@
+{
+  "name": "Casa Limpia",
+  "short_name": "Casa Limpia",
+  "description": "Gestiona las tareas de aseo, productos y compras de tu hogar",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f1ec",
+  "theme_color": "#1a1614",
+  "orientation": "portrait-primary",
+  "categories": ["lifestyle", "productivity"],
+  "lang": "es",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

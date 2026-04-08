@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { authClient } from '../lib/auth'
 import { getActiveHouse, clearActiveHouse } from '../lib/house'
 import { fetchHouseProfile, checkSuperAdmin } from '../lib/api'
+import InstallPrompt from './InstallPrompt'
 
 export default function Layout() {
   const navigate = useNavigate()
@@ -49,6 +50,7 @@ export default function Layout() {
 
   const navItems = [
     { to: '/', label: 'Tareas', end: true, activeColor: 'var(--moss-500)' },
+    { to: '/stats', label: 'Stats', activeColor: 'var(--moss-500)' },
     { to: '/products', label: 'Productos', activeColor: 'var(--clay-500)' },
     { to: '/shopping', label: 'Compras', activeColor: 'var(--clay-500)' },
     { to: '/admin', label: 'Admin', activeColor: 'var(--clay-500)' },
@@ -191,6 +193,8 @@ export default function Layout() {
           {house?.name || 'Casa Limpia'}
         </p>
       </footer>
+
+      <InstallPrompt />
     </div>
   )
 }

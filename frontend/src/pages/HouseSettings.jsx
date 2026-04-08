@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { authClient } from '../lib/auth'
 import { getActiveHouse, setActiveHouse, clearActiveHouse, AVATARS, COLORS } from '../lib/house'
-import { fetchHouseMembers, fetchHouseProfile, updateHouseProfile } from '../lib/api'
+import { fetchHouseMembers, fetchHouseProfile, updateHouseProfile, fetchVapidKey, subscribePush, unsubscribePush, fetchPushStatus } from '../lib/api'
 
 export default function HouseSettings() {
   const navigate = useNavigate()
@@ -21,6 +21,9 @@ export default function HouseSettings() {
   const [editingName, setEditingName] = useState(false)
   const [houseName, setHouseName] = useState(house?.name || '')
   const [savingName, setSavingName] = useState(false)
+  const [pushSupported, setPushSupported] = useState(false)
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushLoading, setPushLoading] = useState(false)
   const { data: session } = authClient.useSession()
 
   const showToast = (msg, type = 'success') => {
@@ -48,6 +51,49 @@ export default function HouseSettings() {
   useEffect(() => {
     if (session?.user) loadData()
   }, [session?.user?.id])
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      setPushSupported(true)
+      fetchPushStatus().then(r => setPushEnabled(r.subscribed)).catch(() => {})
+    }
+  }, [])
+
+  async function handleTogglePush() {
+    setPushLoading(true)
+    try {
+      if (pushEnabled) {
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.getSubscription()
+        if (sub) {
+          await unsubscribePush(sub.endpoint)
+          await sub.unsubscribe()
+        }
+        setPushEnabled(false)
+        showToast('Notificaciones desactivadas')
+      } else {
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') {
+          showToast('Permiso de notificaciones denegado', 'error')
+          setPushLoading(false)
+          return
+        }
+        const { publicKey } = await fetchVapidKey()
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        })
+        await subscribePush(sub.toJSON())
+        setPushEnabled(true)
+        showToast('Notificaciones activadas')
+      }
+    } catch (err) {
+      showToast(err.message || 'Error con notificaciones', 'error')
+    } finally {
+      setPushLoading(false)
+    }
+  }
 
   const isOwnerOrAdmin = myRole === 'owner' || myRole === 'admin'
 
@@ -381,6 +427,39 @@ export default function HouseSettings() {
         </div>
       )}
 
+      {/* Notifications */}
+      {pushSupported && (
+        <div className="mb-6">
+          <h3 className="font-display text-lg mb-3" style={{ color: 'var(--bark-700)' }}>
+            Notificaciones
+          </h3>
+          <div
+            className="rounded-xl p-4 flex items-center justify-between"
+            style={{ background: 'var(--surface-card)', border: '1px solid rgba(196,184,166,0.25)' }}
+          >
+            <div>
+              <p className="font-body font-semibold text-[13px]" style={{ color: 'var(--bark-700)' }}>
+                Notificaciones push
+              </p>
+              <p className="font-body text-[11px]" style={{ color: 'var(--bark-300)' }}>
+                Recibe avisos cuando alguien complete una tarea
+              </p>
+            </div>
+            <button
+              onClick={handleTogglePush}
+              disabled={pushLoading}
+              className="w-12 h-7 rounded-full transition-all flex-shrink-0 relative disabled:opacity-50"
+              style={{ background: pushEnabled ? 'var(--moss-500)' : 'rgba(196,184,166,0.3)' }}
+            >
+              <div
+                className="w-5 h-5 rounded-full bg-white absolute top-1 transition-all shadow-sm"
+                style={{ left: pushEnabled ? 26 : 4 }}
+              />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex flex-col gap-2">
         <button
@@ -511,4 +590,15 @@ function ProfileEditModal({ avatar: initialAvatar, color: initialColor, onSave, 
     </div>,
     document.body
   )
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
 }

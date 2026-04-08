@@ -9,6 +9,7 @@ import crypto from 'crypto'
 import { fileURLToPath } from 'url'
 import { toNodeHandler } from 'better-auth/node'
 import { createAuth } from './auth.js'
+import webpush from 'web-push'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOADS_DIR = path.join(__dirname, 'uploads')
@@ -245,6 +246,7 @@ app.put('/api/houses/profile', requireAuth, requireHouse, async (req, res) => {
 app.post('/api/houses/seed', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
   try {
     const orgId = req.house.id
+    const template = req.body.template || 'small'
 
     // Check if house already has data
     const { rows: existing } = await pool.query(
@@ -254,38 +256,82 @@ app.post('/api/houses/seed', requireAuth, requireHouse, requireRole('owner', 'ad
       return res.status(400).json({ error: 'Esta casa ya tiene datos' })
     }
 
-    // Seed tasks
-    await pool.query(`
-      INSERT INTO tasks (name, description, frequency_type, frequency_value, is_active, organization_id) VALUES
-        ('Barrer la cocina',      'Incluir debajo de la nevera',             'daily',    1,  true, $1),
-        ('Fregar el suelo',       'Cocina, bano y pasillo',                  'daily',    2,  true, $1),
-        ('Limpiar el bano',       'Lavabo, ducha, inodoro y espejo',         'weekly',   7,  true, $1),
-        ('Pasar la aspiradora',   'Sala y dormitorios',                      'weekly',   7,  true, $1),
-        ('Limpiar microondas',    'Interior y exterior',                     'weekly',   7,  true, $1),
-        ('Cambiar sabanas',       'Todas las camas',                         'biweekly', 14, true, $1),
-        ('Limpiar nevera',        'Sacar todo y limpiar estantes',           'monthly',  30, true, $1),
-        ('Lavar ventanas',        'Cristales interiores y marcos',           'monthly',  30, true, $1),
-        ('Limpiar horno',         'Rejillas y interior',                     'monthly',  30, true, $1),
-        ('Desempolvar muebles',   'Estanterias, cuadros y rincones altos',  'weekly',   7,  true, $1)
-    `, [orgId])
+    if (template === 'empty') {
+      return res.json({ ok: true, template })
+    }
 
-    // Seed products
-    await pool.query(`
-      INSERT INTO products (name, category, reminder_frequency_days, is_out_of_stock, organization_id) VALUES
-        ('Jabon lavavajillas',    'limpieza',   30, false, $1),
-        ('Lejia',                 'limpieza',   30, false, $1),
-        ('Fregasuelos',           'limpieza',   30, false, $1),
-        ('Limpiacristales',       'limpieza',   60, false, $1),
-        ('Esponjas',              'limpieza',   30, false, $1),
-        ('Bolsas de basura',      'limpieza',   14, false, $1),
-        ('Papel higienico',       'bano',       14, false, $1),
-        ('Jabon de manos',        'bano',       30, false, $1),
-        ('Ambientador',           'bano',       30, false, $1),
-        ('Detergente ropa',       'lavanderia', 30, false, $1),
-        ('Suavizante',            'lavanderia', 30, false, $1)
-    `, [orgId])
+    // Small apartment: 8 tasks, basic products
+    const smallTasks = [
+      ['Barrer la cocina',      'Incluir debajo de la nevera',             'daily',    1],
+      ['Fregar el suelo',       'Cocina, bano y pasillo',                  'daily',    2],
+      ['Limpiar el bano',       'Lavabo, ducha, inodoro y espejo',         'weekly',   7],
+      ['Pasar la aspiradora',   'Sala y dormitorios',                      'weekly',   7],
+      ['Limpiar microondas',    'Interior y exterior',                     'weekly',   7],
+      ['Cambiar sabanas',       'Todas las camas',                         'biweekly', 14],
+      ['Limpiar nevera',        'Sacar todo y limpiar estantes',           'monthly',  30],
+      ['Desempolvar muebles',   'Estanterias, cuadros y rincones altos',  'weekly',   7],
+    ]
 
-    res.json({ ok: true })
+    // Family house: adds more tasks
+    const familyExtra = [
+      ['Lavar ventanas',        'Cristales interiores y marcos',           'monthly',  30],
+      ['Limpiar horno',         'Rejillas y interior',                     'monthly',  30],
+      ['Ordenar juguetes',      'Sala de estar y dormitorios',             'daily',    1],
+      ['Limpiar patio/terraza', 'Barrer y recoger hojas',                  'weekly',   7],
+      ['Sacar la basura',       'Organica y reciclaje',                    'daily',    2],
+      ['Limpiar garage',        'Barrer y organizar',                      'monthly',  30],
+      ['Lavar platos',          'Despues de cada comida',                  'daily',    1],
+      ['Tender camas',          'Todas las habitaciones',                  'daily',    1],
+    ]
+
+    const tasks = template === 'family' ? [...smallTasks, ...familyExtra] : smallTasks
+    const values = tasks.map((_, i) => {
+      const base = i * 4
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, true, $${tasks.length * 4 + 1})`
+    }).join(', ')
+    const params = tasks.flat()
+    params.push(orgId)
+
+    await pool.query(
+      `INSERT INTO tasks (name, description, frequency_type, frequency_value, is_active, organization_id) VALUES ${values}`,
+      params
+    )
+
+    // Products (same for both templates, family gets extras)
+    const baseProducts = [
+      ['Jabon lavavajillas',    'limpieza',   30],
+      ['Lejia',                 'limpieza',   30],
+      ['Fregasuelos',           'limpieza',   30],
+      ['Limpiacristales',       'limpieza',   60],
+      ['Esponjas',              'limpieza',   30],
+      ['Bolsas de basura',      'limpieza',   14],
+      ['Papel higienico',       'bano',       14],
+      ['Jabon de manos',        'bano',       30],
+      ['Detergente ropa',       'lavanderia', 30],
+    ]
+
+    const familyProducts = [
+      ['Suavizante',            'lavanderia', 30],
+      ['Ambientador',           'bano',       30],
+      ['Desinfectante',         'limpieza',   30],
+      ['Trapos de cocina',      'limpieza',   60],
+      ['Quitagrasas',           'limpieza',   45],
+    ]
+
+    const products = template === 'family' ? [...baseProducts, ...familyProducts] : baseProducts
+    const pValues = products.map((_, i) => {
+      const base = i * 3
+      return `($${base + 1}, $${base + 2}, $${base + 3}, false, $${products.length * 3 + 1})`
+    }).join(', ')
+    const pParams = products.flat()
+    pParams.push(orgId)
+
+    await pool.query(
+      `INSERT INTO products (name, category, reminder_frequency_days, is_out_of_stock, organization_id) VALUES ${pValues}`,
+      pParams
+    )
+
+    res.json({ ok: true, template })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -446,6 +492,17 @@ app.post('/api/completions', requireAuth, requireHouse, async (req, res) => {
       'INSERT INTO completions (task_id, completed_at, completed_by, user_id) VALUES ($1, $2, $3, $4) RETURNING *',
       [task_id, completed_at || new Date().toISOString(), req.user.name || null, req.user.id]
     )
+
+    // Send push notification to house members
+    const { rows: taskInfo } = await pool.query('SELECT name FROM tasks WHERE id = $1', [task_id])
+    const taskName = taskInfo[0]?.name || 'una tarea'
+    const userName = req.user.name || 'Alguien'
+    sendPushToHouse(req.house.id, {
+      title: 'Tarea completada',
+      body: `${userName} completo: ${taskName}`,
+      tag: 'task-completed',
+    })
+
     res.json(rows[0])
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -720,6 +777,181 @@ app.delete('/api/shopping-items/:id', requireAuth, requireHouse, async (req, res
   }
 })
 
+// --- Stats ---
+
+// GET /api/stats/participation?period=week|month|all
+app.get('/api/stats/participation', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const period = req.query.period || 'month'
+    let dateFilter = ''
+    if (period === 'week') {
+      dateFilter = "AND c.completed_at >= NOW() - INTERVAL '7 days'"
+    } else if (period === 'month') {
+      dateFilter = "AND c.completed_at >= NOW() - INTERVAL '30 days'"
+    }
+
+    // Per-member completion counts
+    const { rows: memberStats } = await pool.query(`
+      SELECT
+        c.user_id,
+        COALESCE(c.completed_by, 'Desconocido') as name,
+        COALESCE(p.avatar, '🧑') as avatar,
+        COALESCE(p.color, '#6a9960') as color,
+        COUNT(*) as completions
+      FROM completions c
+      JOIN tasks t ON c.task_id = t.id
+      LEFT JOIN house_member_profiles p ON p.user_id = c.user_id AND p.organization_id = t.organization_id
+      WHERE t.organization_id = $1 ${dateFilter}
+      GROUP BY c.user_id, c.completed_by, p.avatar, p.color
+      ORDER BY completions DESC
+    `, [req.house.id])
+
+    // Total completions
+    const total = memberStats.reduce((sum, m) => sum + parseInt(m.completions), 0)
+
+    // Daily completions for the period (for chart)
+    let chartDays = period === 'week' ? 7 : period === 'month' ? 30 : 90
+    const { rows: daily } = await pool.query(`
+      SELECT
+        DATE(c.completed_at) as date,
+        COUNT(*) as count
+      FROM completions c
+      JOIN tasks t ON c.task_id = t.id
+      WHERE t.organization_id = $1
+        AND c.completed_at >= NOW() - INTERVAL '${chartDays} days'
+      GROUP BY DATE(c.completed_at)
+      ORDER BY date
+    `, [req.house.id])
+
+    // Top tasks (most completed)
+    const { rows: topTasks } = await pool.query(`
+      SELECT
+        t.name,
+        COUNT(*) as completions
+      FROM completions c
+      JOIN tasks t ON c.task_id = t.id
+      WHERE t.organization_id = $1 ${dateFilter}
+      GROUP BY t.name
+      ORDER BY completions DESC
+      LIMIT 5
+    `, [req.house.id])
+
+    res.json({
+      members: memberStats.map(m => ({
+        userId: m.user_id,
+        name: m.name,
+        avatar: m.avatar,
+        color: m.color,
+        completions: parseInt(m.completions),
+        percentage: total > 0 ? Math.round((parseInt(m.completions) / total) * 100) : 0,
+      })),
+      total,
+      daily: daily.map(d => ({ date: d.date, count: parseInt(d.count) })),
+      topTasks: topTasks.map(t => ({ name: t.name, completions: parseInt(t.completions) })),
+      period,
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// --- Push Notifications ---
+
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || 'mailto:admin@casalimpia.app',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  )
+}
+
+// GET /api/push/vapid-key
+app.get('/api/push/vapid-key', (req, res) => {
+  const key = process.env.VAPID_PUBLIC_KEY
+  if (!key) return res.status(503).json({ error: 'Push notifications no configuradas' })
+  res.json({ publicKey: key })
+})
+
+// POST /api/push/subscribe
+app.post('/api/push/subscribe', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const { subscription } = req.body
+    if (!subscription || !subscription.endpoint) {
+      return res.status(400).json({ error: 'Subscription invalida' })
+    }
+
+    await pool.query(`
+      INSERT INTO push_subscriptions (user_id, organization_id, endpoint, keys_p256dh, keys_auth)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (endpoint) DO UPDATE SET
+        user_id = EXCLUDED.user_id,
+        organization_id = EXCLUDED.organization_id,
+        keys_p256dh = EXCLUDED.keys_p256dh,
+        keys_auth = EXCLUDED.keys_auth,
+        updated_at = NOW()
+    `, [req.user.id, req.house.id, subscription.endpoint, subscription.keys.p256dh, subscription.keys.auth])
+
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// DELETE /api/push/subscribe
+app.delete('/api/push/subscribe', requireAuth, async (req, res) => {
+  try {
+    const { endpoint } = req.body
+    if (!endpoint) return res.status(400).json({ error: 'Endpoint requerido' })
+    await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1 AND user_id = $2', [endpoint, req.user.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /api/push/status
+app.get('/api/push/status', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id FROM push_subscriptions WHERE user_id = $1 AND organization_id = $2 LIMIT 1',
+      [req.user.id, req.house.id]
+    )
+    res.json({ subscribed: rows.length > 0 })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Internal: send push to all subscribers of a house
+async function sendPushToHouse(organizationId, payload) {
+  if (!process.env.VAPID_PUBLIC_KEY) return
+
+  try {
+    const { rows } = await pool.query(
+      'SELECT endpoint, keys_p256dh, keys_auth FROM push_subscriptions WHERE organization_id = $1',
+      [organizationId]
+    )
+
+    const promises = rows.map(async (sub) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth } },
+          JSON.stringify(payload)
+        )
+      } catch (err) {
+        // Remove expired subscriptions
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint])
+        }
+      }
+    })
+
+    await Promise.allSettled(promises)
+  } catch (err) {
+    console.error('Push notification error:', err.message)
+  }
+}
+
 // --- Auto-migrate ---
 async function migrate() {
   try {
@@ -837,6 +1069,22 @@ async function migrate() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `)
+
+    // Push subscriptions table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        user_id         TEXT NOT NULL,
+        organization_id TEXT NOT NULL,
+        endpoint        TEXT NOT NULL UNIQUE,
+        keys_p256dh     TEXT NOT NULL,
+        keys_auth       TEXT NOT NULL,
+        created_at      TIMESTAMPTZ DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ DEFAULT NOW()
+      )
+    `)
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_push_subs_org ON push_subscriptions(organization_id)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id)')
 
     console.log('Migrations complete')
   } catch (err) {

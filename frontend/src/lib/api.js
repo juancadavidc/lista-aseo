@@ -174,6 +174,30 @@ export async function clearPurchasedItems() {
   return request('/shopping-items/clear-purchased', { method: 'DELETE' })
 }
 
+// --- Stats ---
+
+export async function fetchParticipationStats(period = 'month') {
+  return request(`/stats/participation?period=${period}`)
+}
+
+// --- Push Notifications ---
+
+export async function fetchVapidKey() {
+  return request('/push/vapid-key')
+}
+
+export async function subscribePush(subscription) {
+  return request('/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription }) })
+}
+
+export async function unsubscribePush(endpoint) {
+  return request('/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint }) })
+}
+
+export async function fetchPushStatus() {
+  return request('/push/status')
+}
+
 // --- Super Admin ---
 
 export async function checkSuperAdmin() {
@@ -198,6 +222,6 @@ export async function updateHouseProfile(data) {
   return request('/houses/profile', { method: 'PUT', body: JSON.stringify(data) })
 }
 
-export async function seedHouse() {
-  return request('/houses/seed', { method: 'POST' })
+export async function seedHouse(template = 'small') {
+  return request('/houses/seed', { method: 'POST', body: JSON.stringify({ template }) })
 }

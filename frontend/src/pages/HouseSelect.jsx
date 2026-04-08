@@ -44,7 +44,7 @@ export default function HouseSelect() {
     navigate('/')
   }
 
-  async function handleCreate(name) {
+  async function handleCreate(name, template) {
     try {
       const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'casa'
       const result = await authClient.organization.create({ name, slug: slug + '-' + Date.now() })
@@ -55,10 +55,9 @@ export default function HouseSelect() {
       const newHouse = result.data
       setActiveHouse({ id: newHouse.id, name: newHouse.name, slug: newHouse.slug })
 
-      // Seed example data
+      // Seed with selected template
       try {
-        // Need to set the house temporarily so seedHouse sends x-house-id
-        await seedHouse()
+        await seedHouse(template)
       } catch {
         // Seed is optional, don't block on error
       }
@@ -233,22 +232,44 @@ export default function HouseSelect() {
   )
 }
 
+const TEMPLATES = [
+  {
+    key: 'small',
+    emoji: '🏢',
+    title: 'Apartamento',
+    description: '8 tareas basicas + 9 productos esenciales',
+  },
+  {
+    key: 'family',
+    emoji: '🏡',
+    title: 'Casa familiar',
+    description: '16 tareas completas + 14 productos',
+  },
+  {
+    key: 'empty',
+    emoji: '📝',
+    title: 'Personalizado',
+    description: 'Empezar desde cero, tu configuras todo',
+  },
+]
+
 function CreateHouseModal({ onSave, onClose }) {
   const [name, setName] = useState('')
+  const [template, setTemplate] = useState('small')
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (!name.trim()) return
     setLoading(true)
-    await onSave(name.trim())
+    await onSave(name.trim(), template)
     setLoading(false)
   }
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 modal-backdrop" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 fade-in"
+        className="w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 fade-in max-h-[90dvh] overflow-y-auto"
         style={{ background: 'var(--surface-card)', border: '1px solid rgba(196,184,166,0.25)' }}
         onClick={e => e.stopPropagation()}
       >
@@ -257,7 +278,7 @@ function CreateHouseModal({ onSave, onClose }) {
         </h3>
 
         <form onSubmit={handleSubmit}>
-          <div className="mb-6">
+          <div className="mb-5">
             <label className="font-body text-[12px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: 'var(--bark-400)' }}>
               Nombre de la casa
             </label>
@@ -274,9 +295,42 @@ function CreateHouseModal({ onSave, onClose }) {
               onBlur={e => e.target.style.borderColor = 'rgba(196,184,166,0.3)'}
               autoFocus
             />
-            <p className="font-body text-[11px] mt-2" style={{ color: 'var(--bark-300)' }}>
-              Se incluiran tareas y productos de ejemplo para empezar
-            </p>
+          </div>
+
+          <div className="mb-6">
+            <label className="font-body text-[12px] font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--bark-400)' }}>
+              Plantilla inicial
+            </label>
+            <div className="flex flex-col gap-2">
+              {TEMPLATES.map(t => (
+                <button
+                  type="button"
+                  key={t.key}
+                  onClick={() => setTemplate(t.key)}
+                  className="flex items-center gap-3 p-3 rounded-xl text-left transition-all active:scale-[0.98]"
+                  style={template === t.key
+                    ? { background: 'rgba(106,153,96,0.08)', border: '1.5px solid var(--moss-400)' }
+                    : { background: 'var(--surface-elevated)', border: '1.5px solid rgba(196,184,166,0.2)' }
+                  }
+                >
+                  <span className="text-xl flex-shrink-0">{t.emoji}</span>
+                  <div className="min-w-0">
+                    <p className="font-body text-[13px] font-semibold" style={{ color: 'var(--bark-700)' }}>
+                      {t.title}
+                    </p>
+                    <p className="font-body text-[11px]" style={{ color: 'var(--bark-300)' }}>
+                      {t.description}
+                    </p>
+                  </div>
+                  {template === t.key && (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 ml-auto">
+                      <circle cx="12" cy="12" r="10" fill="var(--moss-400)"/>
+                      <path d="M8 12l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex gap-2">
