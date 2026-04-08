@@ -50,7 +50,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
         {/* Authenticated, no house selected */}
         <Route path="/houses" element={<RequireAuth><HouseSelect /></RequireAuth>} />
-        <Route path="/super-admin" element={<RequireAuth><SuperAdmin /></RequireAuth>} />
 
         {/* Authenticated + house selected */}
         <Route element={<RequireAuth><RequireHouse><Layout /></RequireHouse></RequireAuth>}>
@@ -60,6 +59,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/shopping/admin" element={<ShoppingAdmin />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/house-settings" element={<HouseSettings />} />
+          <Route path="/super-admin" element={<SuperAdmin />} />
         </Route>
 
         {/* Fallback */}
