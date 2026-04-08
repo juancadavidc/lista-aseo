@@ -2,7 +2,7 @@
 
 > Este archivo se actualiza en cada iteración para rastrear el progreso contra el [Roadmap de Visión](../CLAUDE.md#roadmap-de-visión).
 
-## Estado Actual: Fase 0 (MVP) — COMPLETADA | Fase 1 — COMPLETADA
+## Estado Actual: Fase 0 (MVP) — COMPLETADA | Fase 1 — COMPLETADA | Fase 2 — EN PROGRESO
 
 ---
 
@@ -51,16 +51,19 @@
 
 ---
 
-## [Fase 2] — Valor Diferenciado (NO INICIADA)
+## [Fase 2] — Experiencias Agénticas (EN PROGRESO)
 
-**Objetivo:** Features que nos separen de una simple lista de tareas.
+**Objetivo:** Features inteligentes que den valor inmediato y diferencien de una lista simple.
+
+### 2026-04-08 — Smart Tags + Recomendador de Tareas
+- **Smart Tags en lista de compras** — Diccionario de 600+ keywords en español que sugiere categoría automáticamente al escribir un producto. Chip visual que el usuario acepta o descarta. Frontend-only, sin dependencias externas.
+- **Recomendador de tareas en onboarding** — Wizard de 2 pasos al crear casa: elegir tipo de espacio (Apartamento, Casa familiar, Airbnb, Oficina, Personalizado) y seleccionar/deseleccionar tareas individuales con checkboxes antes de crear. Backend actualizado para aceptar lista explícita de tareas.
 
 | Feature | Estado | PR |
 |---------|--------|----|
-| Rotación automática de tareas | Pendiente | — |
-| Alertas inteligentes de recompra | Pendiente | — |
-| Verificación con fotos | Pendiente | — |
-| Reportes semanales/mensuales | Pendiente | — |
+| Smart Tags en compras | Completado | — |
+| Recomendador de tareas en onboarding | Completado | — |
+| Creación de tareas con lenguaje natural | Pendiente | — |
 
 ---
 

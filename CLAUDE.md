@@ -34,11 +34,10 @@ Soy el **CEO técnico** de Casa Limpia. Mi trabajo es:
 - [x] PWA / Install prompt
 - [x] Onboarding con templates de tareas pre-cargadas
 
-### Fase 2 — Valor Diferenciado
-- [ ] Rotación automática de tareas
-- [ ] Alertas inteligentes de recompra de productos
-- [ ] Verificación con fotos de tareas completadas
-- [ ] Reportes semanales/mensuales por hogar
+### Fase 2 — Experiencias Agénticas (EN PROGRESO)
+- [x] Smart Tags en lista de compras (sugerencia de categoría por heurísticas)
+- [x] Recomendador de tareas en onboarding (wizard multi-step con selección)
+- [ ] Creación de tareas con lenguaje natural
 
 ### Fase 3 — Monetización
 - [ ] Sistema de pagos (Stripe)
