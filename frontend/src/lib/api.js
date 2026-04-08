@@ -222,6 +222,8 @@ export async function updateHouseProfile(data) {
   return request('/houses/profile', { method: 'PUT', body: JSON.stringify(data) })
 }
 
-export async function seedHouse(template = 'small') {
-  return request('/houses/seed', { method: 'POST', body: JSON.stringify({ template }) })
+export async function seedHouse(template = 'small', tasks = null) {
+  const body = { template }
+  if (tasks) body.tasks = tasks
+  return request('/houses/seed', { method: 'POST', body: JSON.stringify(body) })
 }

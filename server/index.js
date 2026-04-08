@@ -247,6 +247,7 @@ app.post('/api/houses/seed', requireAuth, requireHouse, requireRole('owner', 'ad
   try {
     const orgId = req.house.id
     const template = req.body.template || 'small'
+    const customTasks = req.body.tasks // optional array of task objects
 
     // Check if house already has data
     const { rows: existing } = await pool.query(
@@ -256,48 +257,78 @@ app.post('/api/houses/seed', requireAuth, requireHouse, requireRole('owner', 'ad
       return res.status(400).json({ error: 'Esta casa ya tiene datos' })
     }
 
-    if (template === 'empty') {
+    if (template === 'empty' && (!customTasks || customTasks.length === 0)) {
       return res.json({ ok: true, template })
     }
 
-    // Small apartment: 8 tasks, basic products
-    const smallTasks = [
-      ['Barrer la cocina',      'Incluir debajo de la nevera',             'daily',    1],
-      ['Fregar el suelo',       'Cocina, bano y pasillo',                  'daily',    2],
-      ['Limpiar el bano',       'Lavabo, ducha, inodoro y espejo',         'weekly',   7],
-      ['Pasar la aspiradora',   'Sala y dormitorios',                      'weekly',   7],
-      ['Limpiar microondas',    'Interior y exterior',                     'weekly',   7],
-      ['Cambiar sabanas',       'Todas las camas',                         'biweekly', 14],
-      ['Limpiar nevera',        'Sacar todo y limpiar estantes',           'monthly',  30],
-      ['Desempolvar muebles',   'Estanterias, cuadros y rincones altos',  'weekly',   7],
-    ]
+    // Insert tasks — from custom array if provided, otherwise from hardcoded templates
+    const validFrequencies = ['daily', 'weekly', 'biweekly', 'monthly']
 
-    // Family house: adds more tasks
-    const familyExtra = [
-      ['Lavar ventanas',        'Cristales interiores y marcos',           'monthly',  30],
-      ['Limpiar horno',         'Rejillas y interior',                     'monthly',  30],
-      ['Ordenar juguetes',      'Sala de estar y dormitorios',             'daily',    1],
-      ['Limpiar patio/terraza', 'Barrer y recoger hojas',                  'weekly',   7],
-      ['Sacar la basura',       'Organica y reciclaje',                    'daily',    2],
-      ['Limpiar garage',        'Barrer y organizar',                      'monthly',  30],
-      ['Lavar platos',          'Despues de cada comida',                  'daily',    1],
-      ['Tender camas',          'Todas las habitaciones',                  'daily',    1],
-    ]
+    if (customTasks && customTasks.length > 0) {
+      // Validate each task
+      for (const t of customTasks) {
+        if (!t.name || typeof t.name !== 'string' || !t.name.trim()) {
+          return res.status(400).json({ error: 'Cada tarea debe tener un nombre' })
+        }
+        if (!t.frequency_type || !validFrequencies.includes(t.frequency_type)) {
+          return res.status(400).json({ error: `Frecuencia invalida: ${t.frequency_type}` })
+        }
+        if (!t.frequency_value || typeof t.frequency_value !== 'number' || t.frequency_value < 1) {
+          return res.status(400).json({ error: 'frequency_value debe ser un numero positivo' })
+        }
+      }
 
-    const tasks = template === 'family' ? [...smallTasks, ...familyExtra] : smallTasks
-    const values = tasks.map((_, i) => {
-      const base = i * 4
-      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, true, $${tasks.length * 4 + 1})`
-    }).join(', ')
-    const params = tasks.flat()
-    params.push(orgId)
+      const tasks = customTasks.map(t => [t.name.trim(), t.description || '', t.frequency_type, t.frequency_value])
+      const values = tasks.map((_, i) => {
+        const base = i * 4
+        return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, true, $${tasks.length * 4 + 1})`
+      }).join(', ')
+      const params = tasks.flat()
+      params.push(orgId)
 
-    await pool.query(
-      `INSERT INTO tasks (name, description, frequency_type, frequency_value, is_active, organization_id) VALUES ${values}`,
-      params
-    )
+      await pool.query(
+        `INSERT INTO tasks (name, description, frequency_type, frequency_value, is_active, organization_id) VALUES ${values}`,
+        params
+      )
+    } else if (template !== 'empty') {
+      // Legacy template-based seeding
+      const smallTasks = [
+        ['Barrer la cocina',      'Incluir debajo de la nevera',             'daily',    1],
+        ['Fregar el suelo',       'Cocina, bano y pasillo',                  'daily',    2],
+        ['Limpiar el bano',       'Lavabo, ducha, inodoro y espejo',         'weekly',   7],
+        ['Pasar la aspiradora',   'Sala y dormitorios',                      'weekly',   7],
+        ['Limpiar microondas',    'Interior y exterior',                     'weekly',   7],
+        ['Cambiar sabanas',       'Todas las camas',                         'biweekly', 14],
+        ['Limpiar nevera',        'Sacar todo y limpiar estantes',           'monthly',  30],
+        ['Desempolvar muebles',   'Estanterias, cuadros y rincones altos',  'weekly',   7],
+      ]
 
-    // Products (same for both templates, family gets extras)
+      const familyExtra = [
+        ['Lavar ventanas',        'Cristales interiores y marcos',           'monthly',  30],
+        ['Limpiar horno',         'Rejillas y interior',                     'monthly',  30],
+        ['Ordenar juguetes',      'Sala de estar y dormitorios',             'daily',    1],
+        ['Limpiar patio/terraza', 'Barrer y recoger hojas',                  'weekly',   7],
+        ['Sacar la basura',       'Organica y reciclaje',                    'daily',    2],
+        ['Limpiar garage',        'Barrer y organizar',                      'monthly',  30],
+        ['Lavar platos',          'Despues de cada comida',                  'daily',    1],
+        ['Tender camas',          'Todas las habitaciones',                  'daily',    1],
+      ]
+
+      const tasks = template === 'family' ? [...smallTasks, ...familyExtra] : smallTasks
+      const values = tasks.map((_, i) => {
+        const base = i * 4
+        return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, true, $${tasks.length * 4 + 1})`
+      }).join(', ')
+      const params = tasks.flat()
+      params.push(orgId)
+
+      await pool.query(
+        `INSERT INTO tasks (name, description, frequency_type, frequency_value, is_active, organization_id) VALUES ${values}`,
+        params
+      )
+    }
+
+    // Products based on template type
     const baseProducts = [
       ['Jabon lavavajillas',    'limpieza',   30],
       ['Lejia',                 'limpieza',   30],
@@ -318,18 +349,40 @@ app.post('/api/houses/seed', requireAuth, requireHouse, requireRole('owner', 'ad
       ['Quitagrasas',           'limpieza',   45],
     ]
 
-    const products = template === 'family' ? [...baseProducts, ...familyProducts] : baseProducts
-    const pValues = products.map((_, i) => {
-      const base = i * 3
-      return `($${base + 1}, $${base + 2}, $${base + 3}, false, $${products.length * 3 + 1})`
-    }).join(', ')
-    const pParams = products.flat()
-    pParams.push(orgId)
+    const airbnbProducts = [
+      ['Desinfectante',         'limpieza',   14],
+      ['Ambientador',           'bano',       14],
+    ]
 
-    await pool.query(
-      `INSERT INTO products (name, category, reminder_frequency_days, is_out_of_stock, organization_id) VALUES ${pValues}`,
-      pParams
-    )
+    const oficinaProducts = [
+      ['Jabon de manos',        'bano',       14],
+      ['Papel higienico',       'bano',       14],
+      ['Toallas de papel',      'bano',       14],
+      ['Bolsas de basura',      'limpieza',   7],
+      ['Desinfectante',         'limpieza',   14],
+      ['Limpiacristales',       'limpieza',   30],
+      ['Fregasuelos',           'limpieza',   14],
+    ]
+
+    let products = []
+    if (template === 'family') products = [...baseProducts, ...familyProducts]
+    else if (template === 'airbnb') products = [...baseProducts, ...airbnbProducts]
+    else if (template === 'oficina') products = oficinaProducts
+    else if (template !== 'empty') products = baseProducts
+
+    if (products.length > 0) {
+      const pValues = products.map((_, i) => {
+        const base = i * 3
+        return `($${base + 1}, $${base + 2}, $${base + 3}, false, $${products.length * 3 + 1})`
+      }).join(', ')
+      const pParams = products.flat()
+      pParams.push(orgId)
+
+      await pool.query(
+        `INSERT INTO products (name, category, reminder_frequency_days, is_out_of_stock, organization_id) VALUES ${pValues}`,
+        pParams
+      )
+    }
 
     res.json({ ok: true, template })
   } catch (err) {
