@@ -150,6 +150,7 @@ app.get('/api/super-admin/stats', requireAuth, requireSuperAdmin, async (req, re
       pool.query(`
         SELECT o.id, o.name, o.slug, COUNT(DISTINCT m."userId") as member_count,
                COUNT(DISTINCT t.id) as task_count,
+               COUNT(DISTINCT c.id) as completion_count,
                MAX(c.completed_at) as last_activity
         FROM "organization" o
         LEFT JOIN "member" m ON m."organizationId" = o.id
@@ -176,6 +177,7 @@ app.get('/api/super-admin/stats', requireAuth, requireSuperAdmin, async (req, re
         slug: r.slug,
         memberCount: parseInt(r.member_count),
         taskCount: parseInt(r.task_count),
+        completionCount: parseInt(r.completion_count),
         lastActivity: r.last_activity,
       })),
     })
