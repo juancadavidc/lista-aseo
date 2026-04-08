@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   fetchShoppingItems, createShoppingItem, updateShoppingItem,
   deleteShoppingItem, clearPurchasedItems, fetchShoppingCategories,
 } from '../lib/api'
+import { suggestCategory } from '../lib/smartTags'
 
 export default function ShoppingList() {
   const [items, setItems] = useState([])
@@ -16,6 +17,13 @@ export default function ShoppingList() {
   const [showNote, setShowNote] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
   const [toast, setToast] = useState(null)
+  const [dismissedFor, setDismissedFor] = useState('')
+
+  const suggestion = useMemo(() => {
+    if (!newName.trim() || newCategoryId) return null
+    if (dismissedFor === newName) return null
+    return suggestCategory(newName, categories)
+  }, [newName, categories, newCategoryId, dismissedFor])
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -51,7 +59,9 @@ export default function ShoppingList() {
       })
       setNewName('')
       setNewNote('')
+      setNewCategoryId('')
       setShowNote(false)
+      setDismissedFor('')
       showToast('Agregado a la lista')
       loadData()
     } catch {
@@ -202,6 +212,40 @@ export default function ShoppingList() {
             </svg>
           </button>
         </div>
+
+        {/* Smart tag suggestion */}
+        {suggestion && (
+          <div className="flex items-center gap-2 mt-2 px-1">
+            <span className="font-body text-[11px]" style={{ color: 'var(--bark-300)' }}>Sugerencia:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setNewCategoryId(suggestion.id)
+                setDismissedFor('')
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-body text-[12px] font-semibold transition-all active:scale-95"
+              style={{
+                background: 'rgba(106,153,96,0.12)',
+                color: 'var(--moss-600)',
+                border: '1px solid rgba(106,153,96,0.25)',
+              }}
+            >
+              <span>{suggestion.emoji}</span>
+              <span>{suggestion.name}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDismissedFor(newName)}
+              className="w-6 h-6 rounded-full flex items-center justify-center transition-all active:scale-90"
+              style={{ color: 'var(--bark-300)' }}
+              title="Descartar sugerencia"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* Category selector + note */}
         <div className="flex gap-2 mt-2">
