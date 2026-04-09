@@ -770,12 +770,24 @@ export function suggestCategory(inputText, categories) {
   const normalized = normalizeText(inputText)
   if (!normalized) return null
 
-  // Find first matching keyword in input
+  // Pass 1: input contains keyword (longest keyword wins → most specific)
   let matchedCategoryName = null
   for (const [keyword, categoryName] of NORMALIZED_ENTRIES) {
-    if (normalized.includes(keyword) || keyword.includes(normalized)) {
+    if (normalized.includes(keyword)) {
       matchedCategoryName = categoryName
       break
+    }
+  }
+
+  // Pass 2 (fallback): keyword contains input (partial typing)
+  // Iterate shortest-first so the closest match wins
+  if (!matchedCategoryName) {
+    for (let i = NORMALIZED_ENTRIES.length - 1; i >= 0; i--) {
+      const [keyword, categoryName] = NORMALIZED_ENTRIES[i]
+      if (keyword.includes(normalized)) {
+        matchedCategoryName = categoryName
+        break
+      }
     }
   }
 
