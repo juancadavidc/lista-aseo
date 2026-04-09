@@ -781,11 +781,12 @@ export function suggestCategory(inputText, categories) {
 
   if (!matchedCategoryName) return null
 
-  // Find matching category in house's categories (by normalized name)
+  // Find matching category in house's categories (flexible substring match)
   const normalizedMatch = normalizeText(matchedCategoryName)
-  const category = categories.find(
-    cat => normalizeText(cat.name) === normalizedMatch
-  )
+  const category = categories.find(cat => {
+    const normalizedCat = normalizeText(cat.name)
+    return normalizedCat.includes(normalizedMatch) || normalizedMatch.includes(normalizedCat)
+  })
 
   return category ? { id: category.id, name: category.name, emoji: category.emoji } : null
 }
