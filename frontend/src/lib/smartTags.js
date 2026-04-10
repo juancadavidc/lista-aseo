@@ -770,12 +770,23 @@ export function suggestCategory(inputText, categories) {
   const normalized = normalizeText(inputText)
   if (!normalized) return null
 
-  // Find first matching keyword in input
+  // Two-pass matching: direct match first (input contains keyword),
+  // then inverse match as fallback (keyword contains input, for partial typing).
+  // This prevents long compound keywords like "jugo de manzana" (Bebidas)
+  // from hijacking simple inputs like "manzana" (Frutas y Verduras).
   let matchedCategoryName = null
   for (const [keyword, categoryName] of NORMALIZED_ENTRIES) {
-    if (normalized.includes(keyword) || keyword.includes(normalized)) {
+    if (normalized.includes(keyword)) {
       matchedCategoryName = categoryName
       break
+    }
+  }
+  if (!matchedCategoryName) {
+    for (const [keyword, categoryName] of NORMALIZED_ENTRIES) {
+      if (keyword.includes(normalized)) {
+        matchedCategoryName = categoryName
+        break
+      }
     }
   }
 

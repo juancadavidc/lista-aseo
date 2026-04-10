@@ -89,6 +89,7 @@ Soy el **CEO técnico** de Casa Limpia. Mi trabajo es:
 | `docs/ESTANDARES_CODIGO.md` | Convenciones de código frontend/backend/git |
 | `docs/LINEAMIENTOS.md` | Principios de desarrollo y proceso |
 | `docs/CHANGELOG.md` | Registro de cambios por fase del roadmap |
+| `docs/PUSH_NOTIFICATIONS.md` | Arquitectura push notifications: flujo, endpoints, SW, triggers |
 
 ## Reglas Críticas
 
