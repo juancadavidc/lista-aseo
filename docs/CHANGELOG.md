@@ -55,6 +55,15 @@
 
 **Objetivo:** Features inteligentes que den valor inmediato y diferencien de una lista simple.
 
+### 2026-04-13 — DevEx: pre-commit hook + CI de tests y coverage
+- **CI `ci.yml` agregado** — Workflow que corre en cada PR y push a `main`: instala dependencias (`frontend`, `server`, root), ejecuta `npm test` (ambos proyectos), `npm run build` (frontend) y `npm run test:coverage` con thresholds. Previamente solo existía `build-and-push.yml` que construía Docker sin validar nada.
+- **Pre-commit hook (Husky)** — `.husky/pre-commit` corre `npm test` + `npm run build` antes de cada commit para cortar temprano lo que rompería CI.
+- **Backend refactor testeable** — Extraídos middlewares a `server/lib/middleware.js` como factories (`createRequireAuth`, `createRequireHouse`, `createRequireSuperAdmin`) + helpers puros (`requireRole`, `isAllowedImageExtension`). Inyección de `auth` y `pool` como dependencias.
+- **Tests backend (28)** — `server/lib/middleware.test.js` cubre multi-tenant (verificación `organization_id`), roles, auth y validación de imágenes. Coverage `lib/` al 100%.
+- **Coverage transparente** — `frontend/vitest.config.js` con `all: true` reporta cobertura real del proyecto, no solo archivos con tests.
+- **Tests frontend `lib/` (~94 nuevos)** — Nuevas suites para `lib/house.js` (localStorage helpers, constantes), `lib/tasks.js` (helpers puros `frequencyToHours`, `isTaskPending`, `overdueLabel`, `frequencyLabel` + wrappers mockeados), `lib/api.js` (fetch mockeado, cubre `request()` con paths 401/non-ok/JSON-invalido, todos los wrappers de tareas/productos/compras/stats/push/admin/casas, y `uploadProductImage` con FormData) y `components/ProgressRing.jsx`.
+- **Coverage frontend: 7.52% → 17.77% líneas** (17.33% stmts, 19.03% funcs, 12.14% branches). Carpeta `lib/` en 97.9%. Thresholds actualizados a `lines:17 / stmts:17 / funcs:18 / branches:11` para prevenir regresión.
+
 ### 2026-04-13 — Borrado de casas
 - **Eliminar casa desde configuración** — Nueva sección "Zona de peligro" en `/house-settings` visible solo para el dueño, con botón dual-click ("Seguro?") para confirmar. Endpoint `DELETE /api/houses/:id` protegido con verificación de rol `owner`, limpia en transacción tareas, productos, lista de compras, categorías, perfiles de miembros, push subscriptions, invitaciones, miembros y la organización.
 

@@ -10,6 +10,13 @@ import { fileURLToPath } from 'url'
 import { toNodeHandler } from 'better-auth/node'
 import { createAuth } from './auth.js'
 import webpush from 'web-push'
+import {
+  requireRole,
+  createRequireAuth,
+  createRequireHouse,
+  createRequireSuperAdmin,
+  isAllowedImageExtension,
+} from './lib/middleware.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOADS_DIR = path.join(__dirname, 'uploads')
@@ -30,9 +37,7 @@ const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = ['.jpg', '.jpeg', '.png', '.webp']
-    const ext = path.extname(file.originalname).toLowerCase()
-    if (allowed.includes(ext)) cb(null, true)
+    if (isAllowedImageExtension(file.originalname)) cb(null, true)
     else cb(new Error('Solo se permiten imagenes .jpg, .png, .webp'))
   },
 })
@@ -63,61 +68,11 @@ app.use('/api/uploads', express.static(UPLOADS_DIR))
 // Mount Better Auth - handles /api/auth/* routes
 app.all('/api/auth/*', toNodeHandler(auth))
 
-// --- Auth Middleware ---
+// --- Middlewares (instanciados desde ./lib/middleware.js) ---
 
-async function requireAuth(req, res, next) {
-  try {
-    const session = await auth.api.getSession({ headers: req.headers })
-    if (!session) return res.status(401).json({ error: 'No autenticado' })
-    req.user = session.user
-    req.session = session.session
-    next()
-  } catch {
-    return res.status(401).json({ error: 'No autenticado' })
-  }
-}
-
-async function requireHouse(req, res, next) {
-  const houseId = req.headers['x-house-id']
-  if (!houseId) return res.status(400).json({ error: 'Casa no seleccionada' })
-
-  try {
-    const { rows } = await pool.query(
-      'SELECT * FROM "member" WHERE "userId" = $1 AND "organizationId" = $2',
-      [req.user.id, houseId]
-    )
-    if (rows.length === 0) return res.status(403).json({ error: 'No eres miembro de esta casa' })
-
-    req.house = { id: houseId, role: rows[0].role }
-    next()
-  } catch (err) {
-    return res.status(500).json({ error: err.message })
-  }
-}
-
-function requireRole(...roles) {
-  return (req, res, next) => {
-    if (!roles.includes(req.house.role)) {
-      return res.status(403).json({ error: 'No tienes permisos para esta accion' })
-    }
-    next()
-  }
-}
-
-// --- Super Admin Middleware ---
-
-async function requireSuperAdmin(req, res, next) {
-  try {
-    const { rows } = await pool.query(
-      'SELECT id FROM super_admins WHERE user_id = $1',
-      [req.user.id]
-    )
-    if (rows.length === 0) return res.status(403).json({ error: 'No tienes permisos de super admin' })
-    next()
-  } catch (err) {
-    return res.status(500).json({ error: err.message })
-  }
-}
+const requireAuth = createRequireAuth(auth)
+const requireHouse = createRequireHouse(pool)
+const requireSuperAdmin = createRequireSuperAdmin(pool)
 
 // GET /api/super-admin/check - check if current user is super admin
 app.get('/api/super-admin/check', requireAuth, async (req, res) => {
