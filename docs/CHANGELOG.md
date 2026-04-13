@@ -55,6 +55,13 @@
 
 **Objetivo:** Features inteligentes que den valor inmediato y diferencien de una lista simple.
 
+### 2026-04-13 — DevEx: pre-commit hook + CI de tests y coverage
+- **CI `ci.yml` agregado** — Workflow que corre en cada PR y push a `main`: instala dependencias (`frontend`, `server`, root), ejecuta `npm test` (ambos proyectos), `npm run build` (frontend) y `npm run test:coverage` con thresholds. Previamente solo existía `build-and-push.yml` que construía Docker sin validar nada.
+- **Pre-commit hook (Husky)** — `.husky/pre-commit` corre `npm test` + `npm run build` antes de cada commit para cortar temprano lo que rompería CI.
+- **Backend refactor testeable** — Extraídos middlewares a `server/lib/middleware.js` como factories (`createRequireAuth`, `createRequireHouse`, `createRequireSuperAdmin`) + helpers puros (`requireRole`, `isAllowedImageExtension`). Inyección de `auth` y `pool` como dependencias.
+- **Tests backend (28)** — `server/lib/middleware.test.js` cubre multi-tenant (verificación `organization_id`), roles, auth y validación de imágenes. Coverage `lib/` al 100%.
+- **Coverage transparente** — `frontend/vitest.config.js` con `all: true` reporta cobertura real del proyecto, no solo archivos con tests. Baseline actual: ~7.5% líneas (solo `ShoppingList.jsx` tiene tests). Thresholds fijados al nivel actual para prevenir regresiones y subir gradualmente.
+
 ### 2026-04-13 — Borrado de casas
 - **Eliminar casa desde configuración** — Nueva sección "Zona de peligro" en `/house-settings` visible solo para el dueño, con botón dual-click ("Seguro?") para confirmar. Endpoint `DELETE /api/houses/:id` protegido con verificación de rol `owner`, limpia en transacción tareas, productos, lista de compras, categorías, perfiles de miembros, push subscriptions, invitaciones, miembros y la organización.
 

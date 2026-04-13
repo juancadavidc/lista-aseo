@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+# Pre-commit: corre los mismos checks que CI (tests + build frontend)
+# para evitar commits que rompan el pipeline.
+
+set -e
+
+echo "→ Pre-commit: npm test (frontend + server)"
+npm test
+
+echo "→ Pre-commit: npm run build (frontend)"
+npm run build
+
+echo "✓ Pre-commit OK"
