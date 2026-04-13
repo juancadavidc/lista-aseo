@@ -242,6 +242,48 @@ app.put('/api/houses/profile', requireAuth, requireHouse, async (req, res) => {
   }
 })
 
+// DELETE /api/houses/:id - delete a house and all its data (owner only)
+app.delete('/api/houses/:id', requireAuth, async (req, res) => {
+  const houseId = req.params.id
+  if (!houseId) return res.status(400).json({ error: 'Casa no especificada' })
+
+  const client = await pool.connect()
+  try {
+    // Verify caller is owner of this house
+    const { rows } = await client.query(
+      'SELECT role FROM "member" WHERE "userId" = $1 AND "organizationId" = $2',
+      [req.user.id, houseId]
+    )
+    if (rows.length === 0) {
+      return res.status(403).json({ error: 'No eres miembro de esta casa' })
+    }
+    if (rows[0].role !== 'owner') {
+      return res.status(403).json({ error: 'Solo el dueno puede eliminar la casa' })
+    }
+
+    await client.query('BEGIN')
+    // Custom tables (organization_id has no FK, so clean explicitly)
+    await client.query('DELETE FROM tasks WHERE organization_id = $1', [houseId])
+    await client.query('DELETE FROM products WHERE organization_id = $1', [houseId])
+    await client.query('DELETE FROM shopping_items WHERE organization_id = $1', [houseId])
+    await client.query('DELETE FROM shopping_categories WHERE organization_id = $1', [houseId])
+    await client.query('DELETE FROM house_member_profiles WHERE organization_id = $1', [houseId])
+    await client.query('DELETE FROM push_subscriptions WHERE organization_id = $1', [houseId])
+    // Better-auth tables
+    await client.query('DELETE FROM "invitation" WHERE "organizationId" = $1', [houseId])
+    await client.query('DELETE FROM "member" WHERE "organizationId" = $1', [houseId])
+    await client.query('DELETE FROM "organization" WHERE id = $1', [houseId])
+    await client.query('COMMIT')
+
+    res.json({ ok: true })
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    res.status(500).json({ error: err.message })
+  } finally {
+    client.release()
+  }
+})
+
 // POST /api/houses/seed - insert example tasks and products for a new house
 app.post('/api/houses/seed', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
   try {

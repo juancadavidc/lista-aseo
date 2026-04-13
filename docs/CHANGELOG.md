@@ -55,6 +55,12 @@
 
 **Objetivo:** Features inteligentes que den valor inmediato y diferencien de una lista simple.
 
+### 2026-04-13 — Borrado de casas
+- **Eliminar casa desde configuración** — Nueva sección "Zona de peligro" en `/house-settings` visible solo para el dueño, con botón dual-click ("Seguro?") para confirmar. Endpoint `DELETE /api/houses/:id` protegido con verificación de rol `owner`, limpia en transacción tareas, productos, lista de compras, categorías, perfiles de miembros, push subscriptions, invitaciones, miembros y la organización.
+
+### 2026-04-13 — Borrado de casas
+- **Eliminar casa desde Configuración** — Nueva sección "Zona de peligro" en `/house-settings`, visible solo para el `owner`. Botón con patrón dual-click ("Seguro? Toca de nuevo para confirmar") consistente con el resto de la app. Backend: endpoint `DELETE /api/houses/:id` en transacción que limpia `tasks`, `products`, `shopping_items`, `shopping_categories`, `house_member_profiles`, `push_subscriptions`, `invitation`, `member` y `organization`. Verificación de rol owner antes de borrar.
+
 ### 2026-04-08 — Smart Tags + Recomendador de Tareas
 - **Smart Tags en lista de compras** — Diccionario de 600+ keywords en español que sugiere categoría automáticamente al escribir un producto. Chip visual que el usuario acepta o descarta. Frontend-only, sin dependencias externas.
 - **Recomendador de tareas en onboarding** — Wizard de 2 pasos al crear casa: elegir tipo de espacio (Apartamento, Casa familiar, Airbnb, Oficina, Personalizado) y seleccionar/deseleccionar tareas individuales con checkboxes antes de crear. Backend actualizado para aceptar lista explícita de tareas.
