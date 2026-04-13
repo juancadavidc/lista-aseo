@@ -227,3 +227,7 @@ export async function seedHouse(template = 'small', tasks = null) {
   if (tasks) body.tasks = tasks
   return request('/houses/seed', { method: 'POST', body: JSON.stringify(body) })
 }
+
+export async function deleteHouse(houseId) {
+  return request(`/houses/${houseId}`, { method: 'DELETE' })
+}

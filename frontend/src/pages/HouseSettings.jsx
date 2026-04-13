@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { authClient } from '../lib/auth'
 import { getActiveHouse, setActiveHouse, clearActiveHouse, AVATARS, COLORS } from '../lib/house'
-import { fetchHouseMembers, fetchHouseProfile, updateHouseProfile, fetchVapidKey, subscribePush, unsubscribePush, fetchPushStatus } from '../lib/api'
+import { fetchHouseMembers, fetchHouseProfile, updateHouseProfile, fetchVapidKey, subscribePush, unsubscribePush, fetchPushStatus, deleteHouse } from '../lib/api'
 
 export default function HouseSettings() {
   const navigate = useNavigate()
@@ -24,6 +24,8 @@ export default function HouseSettings() {
   const [pushSupported, setPushSupported] = useState(false)
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushLoading, setPushLoading] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deletingHouse, setDeletingHouse] = useState(false)
   const { data: session } = authClient.useSession()
 
   const showToast = (msg, type = 'success') => {
@@ -155,6 +157,25 @@ export default function HouseSettings() {
   function handleLeaveHouse() {
     clearActiveHouse()
     navigate('/houses')
+  }
+
+  async function handleDeleteHouse() {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true)
+      setTimeout(() => setConfirmingDelete(false), 3000)
+      return
+    }
+    setDeletingHouse(true)
+    try {
+      await deleteHouse(house.id)
+      clearActiveHouse()
+      navigate('/houses')
+    } catch (err) {
+      showToast(err.message || 'Error al eliminar la casa', 'error')
+      setConfirmingDelete(false)
+    } finally {
+      setDeletingHouse(false)
+    }
   }
 
   async function handleRenameSave() {
@@ -470,6 +491,42 @@ export default function HouseSettings() {
           Cambiar de casa
         </button>
       </div>
+
+      {/* Zona de peligro - solo owner */}
+      {myRole === 'owner' && (
+        <div className="mt-8">
+          <h3 className="font-display text-lg mb-3" style={{ color: 'var(--clay-500)' }}>
+            Zona de peligro
+          </h3>
+          <div
+            className="rounded-xl p-4"
+            style={{ background: 'rgba(184,90,58,0.04)', border: '1px solid rgba(184,90,58,0.2)' }}
+          >
+            <p className="font-body font-semibold text-[13px] mb-1" style={{ color: 'var(--bark-700)' }}>
+              Eliminar esta casa
+            </p>
+            <p className="font-body text-[12px] mb-3" style={{ color: 'var(--bark-300)' }}>
+              Se borraran todas las tareas, productos, lista de compras y miembros. Esta accion es permanente.
+            </p>
+            <button
+              onClick={handleDeleteHouse}
+              disabled={deletingHouse}
+              className="w-full py-2.5 rounded-xl font-body font-semibold text-[13px] transition-all active:scale-[0.98] disabled:opacity-60"
+              style={{
+                color: confirmingDelete ? 'white' : 'var(--clay-500)',
+                background: confirmingDelete ? 'var(--clay-500)' : 'rgba(184,90,58,0.08)',
+                border: '1.5px solid rgba(184,90,58,0.3)',
+              }}
+            >
+              {deletingHouse
+                ? 'Eliminando...'
+                : confirmingDelete
+                  ? 'Seguro? Toca de nuevo para confirmar'
+                  : 'Eliminar casa'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Profile edit modal */}
       {showProfileEdit && (
