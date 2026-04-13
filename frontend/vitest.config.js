@@ -18,14 +18,17 @@ export default defineConfig({
         'src/main.jsx',
         'src/**/*.test.{js,jsx}',
         'src/test/**',
+        // auth.js solo configura el cliente de better-auth a partir de env vars,
+        // no tiene logica que valga la pena testear.
+        'src/lib/auth.js',
       ],
       // Thresholds fijados al nivel actual para prevenir regresiones.
       // A medida que agreguemos tests, subimos estos numeros.
       thresholds: {
-        lines: 7,
-        statements: 7,
-        functions: 4,
-        branches: 5,
+        lines: 17,
+        statements: 17,
+        functions: 18,
+        branches: 11,
       },
     },
   },
