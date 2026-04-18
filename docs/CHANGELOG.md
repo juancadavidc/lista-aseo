@@ -55,6 +55,11 @@
 
 **Objetivo:** Features inteligentes que den valor inmediato y diferencien de una lista simple.
 
+### 2026-04-18 — Fix: Resetear tarea ya no borra el historial
+- **Bug:** El botón "Resetear" en Administración borraba todos los registros de `completions` de la tarea para hacerla reaparecer (dependía de `last_completed_at IS NULL`). Resultado: se perdía el historial completo de quién hizo la tarea y cuándo.
+- **Fix:** Nueva columna `tasks.last_reset_at TIMESTAMPTZ`. El endpoint ahora es `POST /api/tasks/:id/reset` (antes `DELETE /api/completions?task_id=...`) y sólo actualiza `last_reset_at = NOW()`. La query `/api/tasks/pending` incluye la tarea cuando `last_reset_at > last_completed_at`, preservando intacto el historial de completions.
+- **Migración automática:** `addColumnIfMissing('tasks', 'last_reset_at', 'TIMESTAMPTZ')` en el arranque del servidor para instalaciones existentes.
+
 ### 2026-04-13 — DevEx: pre-commit hook + CI de tests y coverage
 - **CI `ci.yml` agregado** — Workflow que corre en cada PR y push a `main`: instala dependencias (`frontend`, `server`, root), ejecuta `npm test` (ambos proyectos), `npm run build` (frontend) y `npm run test:coverage` con thresholds. Previamente solo existía `build-and-push.yml` que construía Docker sin validar nada.
 - **Pre-commit hook (Husky)** — `.husky/pre-commit` corre `npm test` + `npm run build` antes de cada commit para cortar temprano lo que rompería CI.

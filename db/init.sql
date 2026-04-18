@@ -8,8 +8,11 @@ CREATE TABLE IF NOT EXISTS tasks (
     product_name  TEXT,
     product_image TEXT,
     organization_id TEXT,
+    last_reset_at TIMESTAMPTZ,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS last_reset_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS completions (
     id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
