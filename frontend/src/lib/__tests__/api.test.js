@@ -83,7 +83,7 @@ describe('api.js — wrappers de tareas/completions', () => {
     ['updateTask', ['id1', { name: 'y' }], 'PATCH', '/tasks/id1', { name: 'y' }],
     ['deleteTask', ['id1'], 'DELETE', '/tasks/id1'],
     ['fetchCompletions', [], 'GET', '/completions'],
-    ['resetTask', ['id1'], 'DELETE', '/completions?task_id=id1'],
+    ['resetTask', ['id1'], 'POST', '/tasks/id1/reset'],
     ['fetchTaskHistory', ['id1', 5], 'GET', '/completions/id1/history?limit=5'],
     ['fetchTaskHistory', ['id1'], 'GET', '/completions/id1/history?limit=10'],
   ]

@@ -431,6 +431,7 @@ app.get('/api/tasks/pending', requireAuth, requireHouse, async (req, res) => {
         AND (
           c.last_completed_at IS NULL
           OR NOW() >= c.last_completed_at + (t.frequency_value * INTERVAL '1 day')
+          OR (t.last_reset_at IS NOT NULL AND t.last_reset_at > c.last_completed_at)
         )
       ORDER BY t.name
     `, [req.house.id])
@@ -559,19 +560,17 @@ app.post('/api/completions', requireAuth, requireHouse, async (req, res) => {
   }
 })
 
-// DELETE /api/completions?task_id=xxx
-app.delete('/api/completions', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
+// POST /api/tasks/:id/reset
+// Marca la tarea como pendiente sin borrar historial de completions.
+app.post('/api/tasks/:id/reset', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
   try {
-    const { task_id } = req.query
-    if (!task_id) return res.status(400).json({ error: 'task_id required' })
-    // Verify task belongs to house
-    const { rows: taskCheck } = await pool.query(
-      'SELECT id FROM tasks WHERE id = $1 AND organization_id = $2', [task_id, req.house.id]
+    const { id } = req.params
+    const { rows } = await pool.query(
+      'UPDATE tasks SET last_reset_at = NOW() WHERE id = $1 AND organization_id = $2 RETURNING *',
+      [id, req.house.id]
     )
-    if (taskCheck.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' })
-
-    await pool.query('DELETE FROM completions WHERE task_id = $1', [task_id])
-    res.json({ ok: true })
+    if (rows.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' })
+    res.json(rows[0])
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -1083,6 +1082,8 @@ async function migrate() {
     await addColumnIfMissing('tasks', 'product_name', 'TEXT')
     // Add product_image to tasks if missing
     await addColumnIfMissing('tasks', 'product_image', 'TEXT')
+    // Reset de aparición sin borrar historial
+    await addColumnIfMissing('tasks', 'last_reset_at', 'TIMESTAMPTZ')
 
     // Multi-tenant columns
     await addColumnIfMissing('tasks', 'organization_id', 'TEXT')

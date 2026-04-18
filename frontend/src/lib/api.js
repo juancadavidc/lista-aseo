@@ -68,7 +68,7 @@ export async function completeTask(taskId) {
 }
 
 export async function resetTask(taskId) {
-  return request(`/completions?task_id=${taskId}`, { method: 'DELETE' })
+  return request(`/tasks/${taskId}/reset`, { method: 'POST' })
 }
 
 export async function fetchTaskHistory(taskId, limit = 10) {
