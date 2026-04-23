@@ -621,12 +621,12 @@ app.get('/api/products', requireAuth, requireHouse, async (req, res) => {
 // POST /api/products
 app.post('/api/products', requireAuth, requireHouse, async (req, res) => {
   try {
-    const { name, category, reminder_frequency_days, is_out_of_stock } = req.body
+    const { name, category, reminder_frequency_days, is_out_of_stock, units } = req.body
     if (!name?.trim()) return res.status(400).json({ error: 'name is required' })
     const { rows } = await pool.query(
-      `INSERT INTO products (name, category, reminder_frequency_days, is_out_of_stock, organization_id)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [name.trim(), category || 'general', reminder_frequency_days || 30, is_out_of_stock ?? false, req.house.id]
+      `INSERT INTO products (name, category, reminder_frequency_days, is_out_of_stock, units, organization_id)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [name.trim(), category || 'general', reminder_frequency_days || 30, is_out_of_stock ?? false, Math.max(1, parseInt(units) || 1), req.house.id]
     )
     res.json(rows[0])
   } catch (err) {
@@ -638,8 +638,16 @@ app.post('/api/products', requireAuth, requireHouse, async (req, res) => {
 app.patch('/api/products/:id', requireAuth, requireHouse, async (req, res) => {
   try {
     const { id } = req.params
-    const fields = req.body
-    const keys = Object.keys(fields).filter(k => k !== 'organization_id')
+    const fields = { ...req.body }
+    delete fields.organization_id
+
+    // Cuando cambia is_out_of_stock, sincronizamos el timestamp de agotado
+    // sin que el cliente tenga que pasarlo explícitamente.
+    if ('is_out_of_stock' in fields) {
+      fields.last_out_of_stock_at = fields.is_out_of_stock ? new Date() : null
+    }
+
+    const keys = Object.keys(fields)
     if (keys.length === 0) return res.status(400).json({ error: 'No fields to update' })
 
     const setClauses = keys.map((k, i) => `${k} = $${i + 3}`)
@@ -661,7 +669,9 @@ app.post('/api/products/:id/purchase', requireAuth, requireHouse, async (req, re
   try {
     const { id } = req.params
     const { rows } = await pool.query(
-      `UPDATE products SET last_purchased_at = NOW(), is_out_of_stock = false WHERE id = $1 AND organization_id = $2 RETURNING *`,
+      `UPDATE products
+       SET last_purchased_at = NOW(), is_out_of_stock = false, last_out_of_stock_at = NULL
+       WHERE id = $1 AND organization_id = $2 RETURNING *`,
       [id, req.house.id]
     )
     if (rows.length === 0) return res.status(404).json({ error: 'Product not found' })
@@ -1084,6 +1094,9 @@ async function migrate() {
     await addColumnIfMissing('tasks', 'product_image', 'TEXT')
     // Reset de aparición sin borrar historial
     await addColumnIfMissing('tasks', 'last_reset_at', 'TIMESTAMPTZ')
+    // Unidades compradas por vez + timestamp de agotado para detectar consumo acelerado
+    await addColumnIfMissing('products', 'units', 'INTEGER NOT NULL DEFAULT 1')
+    await addColumnIfMissing('products', 'last_out_of_stock_at', 'TIMESTAMPTZ')
 
     // Multi-tenant columns
     await addColumnIfMissing('tasks', 'organization_id', 'TEXT')

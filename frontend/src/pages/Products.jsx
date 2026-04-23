@@ -4,6 +4,10 @@ import {
   fetchProducts, createProduct, updateProduct, deleteProduct, purchaseProduct,
 } from '../lib/api'
 
+// Si al marcar agotado el producto duró menos de este porcentaje de su frecuencia
+// configurada, abrimos el modal de ajuste. Subir = mas sensible, bajar = mas laxo.
+const EARLY_OUT_OF_STOCK_RATIO = 0.6
+
 const CATEGORIES = [
   { value: 'all', label: 'Todos' },
   { value: 'limpieza', label: 'Limpieza' },
@@ -61,6 +65,7 @@ export default function Products() {
   const [editingProduct, setEditingProduct] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
   const [toast, setToast] = useState(null)
+  const [earlyOutModal, setEarlyOutModal] = useState(null)
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -114,9 +119,39 @@ export default function Products() {
 
   async function handleToggleOutOfStock(product) {
     try {
-      await updateProduct(product.id, { is_out_of_stock: !product.is_out_of_stock })
+      const next = !product.is_out_of_stock
+      const updated = await updateProduct(product.id, { is_out_of_stock: next })
       loadProducts()
-      showToast(product.is_out_of_stock ? 'Producto disponible' : 'Marcado como agotado', product.is_out_of_stock ? 'success' : 'warning')
+      showToast(next ? 'Marcado como agotado' : 'Producto disponible', next ? 'warning' : 'success')
+
+      // Si acabamos de marcar agotado y duró mucho menos de lo esperado,
+      // ofrecemos ajustar unidades o frecuencia.
+      if (next && updated?.last_purchased_at && updated?.reminder_frequency_days > 0) {
+        const lastPurchase = new Date(updated.last_purchased_at).getTime()
+        const actualDays = Math.max(1, Math.round((Date.now() - lastPurchase) / (24 * 3600 * 1000)))
+        const threshold = updated.reminder_frequency_days * EARLY_OUT_OF_STOCK_RATIO
+        if (actualDays < threshold) {
+          setEarlyOutModal({ product: updated, actualDays })
+        }
+      }
+    } catch { showToast('Error al actualizar', 'error') }
+  }
+
+  async function handleAdjustUnits(productId, newUnits) {
+    try {
+      await updateProduct(productId, { units: newUnits })
+      setEarlyOutModal(null)
+      loadProducts()
+      showToast('Unidades actualizadas')
+    } catch { showToast('Error al actualizar', 'error') }
+  }
+
+  async function handleAdjustFrequency(productId, newFrequency) {
+    try {
+      await updateProduct(productId, { reminder_frequency_days: newFrequency })
+      setEarlyOutModal(null)
+      loadProducts()
+      showToast('Frecuencia actualizada')
     } catch { showToast('Error al actualizar', 'error') }
   }
 
@@ -278,6 +313,18 @@ export default function Products() {
         </div>,
         document.body
       )}
+
+      {/* Early out-of-stock modal */}
+      {earlyOutModal && createPortal(
+        <EarlyOutOfStockModal
+          product={earlyOutModal.product}
+          actualDays={earlyOutModal.actualDays}
+          onAdjustUnits={handleAdjustUnits}
+          onAdjustFrequency={handleAdjustFrequency}
+          onClose={() => setEarlyOutModal(null)}
+        />,
+        document.body
+      )}
     </div>
   )
 }
@@ -371,6 +418,23 @@ function ProductCard({ product, deletingId, onEdit, onDelete, onToggleOutOfStock
                 </svg>
                 Cada {product.reminder_frequency_days}d
               </span>
+
+              {/* Units badge */}
+              {product.units > 1 && (
+                <span
+                  className="freq-badge"
+                  style={{
+                    background: 'rgba(196,184,166,0.15)',
+                    color: 'var(--bark-400)',
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                    <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+                    <path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/>
+                  </svg>
+                  {product.units}u
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -462,6 +526,7 @@ function ProductForm({ product, onSave, onCancel }) {
   const [name, setName] = useState(product?.name || '')
   const [category, setCategory] = useState(product?.category || 'general')
   const [frequencyDays, setFrequencyDays] = useState(product?.reminder_frequency_days || 30)
+  const [units, setUnits] = useState(product?.units || 1)
   const [isOutOfStock, setIsOutOfStock] = useState(product?.is_out_of_stock || false)
 
   function handleSubmit(e) {
@@ -471,6 +536,7 @@ function ProductForm({ product, onSave, onCancel }) {
       name: name.trim(),
       category,
       reminder_frequency_days: parseInt(frequencyDays) || 30,
+      units: Math.max(1, parseInt(units) || 1),
       is_out_of_stock: isOutOfStock,
     })
   }
@@ -570,6 +636,29 @@ function ProductForm({ product, onSave, onCancel }) {
         </div>
       </div>
 
+      {/* Units per purchase */}
+      <div>
+        <label className="block font-body text-[12px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--bark-300)' }}>
+          Unidades por compra
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min="1"
+            max="99"
+            value={units}
+            onChange={e => setUnits(e.target.value)}
+            className="w-20 px-3 py-2 rounded-xl font-body text-[14px] text-center outline-none"
+            style={{
+              background: 'var(--surface-elevated)',
+              border: '1.5px solid rgba(196,184,166,0.3)',
+              color: 'var(--bark-700)',
+            }}
+          />
+          <span className="font-body text-[13px]" style={{ color: 'var(--bark-300)' }}>Ej: 4 rollos, 2 frascos</span>
+        </div>
+      </div>
+
       {/* Out of stock toggle */}
       <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'var(--surface-elevated)', border: '1.5px solid rgba(196,184,166,0.3)' }}>
         <div>
@@ -608,5 +697,118 @@ function ProductForm({ product, onSave, onCancel }) {
         </button>
       </div>
     </form>
+  )
+}
+
+function EarlyOutOfStockModal({ product, actualDays, onAdjustUnits, onAdjustFrequency, onClose }) {
+  const [newUnits, setNewUnits] = useState(Math.max(1, (product.units || 1) - 1))
+  const [newFrequency, setNewFrequency] = useState(actualDays)
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 modal-backdrop"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 max-h-[92dvh] overflow-y-auto fade-in"
+        style={{ background: 'var(--surface-card)', border: '1px solid rgba(196,184,166,0.25)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start gap-3 mb-4">
+          <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg" style={{ background: 'rgba(184,90,58,0.1)' }}>
+            ⚡
+          </div>
+          <div>
+            <h3 className="font-display text-[20px] leading-tight" style={{ color: 'var(--bark-700)' }}>
+              Se agoto antes de tiempo
+            </h3>
+            <p className="font-body text-[13px] mt-1" style={{ color: 'var(--bark-400)' }}>
+              <strong style={{ color: 'var(--bark-700)' }}>{product.name}</strong> duro {actualDays} {actualDays === 1 ? 'dia' : 'dias'}, pero lo tenias configurado cada {product.reminder_frequency_days} dias.
+            </p>
+          </div>
+        </div>
+
+        <p className="font-body text-[12px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--bark-300)' }}>
+          Que paso?
+        </p>
+
+        {/* Option 1: update units */}
+        <div className="rounded-xl p-4 mb-2.5" style={{ background: 'var(--surface-elevated)', border: '1.5px solid rgba(196,184,166,0.3)' }}>
+          <div className="flex items-start gap-2 mb-3">
+            <span className="text-lg leading-none mt-0.5">📦</span>
+            <div>
+              <p className="font-body font-semibold text-[14px]" style={{ color: 'var(--bark-700)' }}>Use menos unidades</p>
+              <p className="font-body text-[12px] mt-0.5" style={{ color: 'var(--bark-400)' }}>
+                Tenias {product.units} {product.units === 1 ? 'unidad' : 'unidades'} configuradas
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min="1"
+              max="99"
+              value={newUnits}
+              onChange={e => setNewUnits(e.target.value)}
+              className="w-20 px-3 py-2 rounded-xl font-body text-[14px] text-center outline-none"
+              style={{ background: 'var(--surface-card)', border: '1.5px solid rgba(196,184,166,0.3)', color: 'var(--bark-700)' }}
+            />
+            <span className="font-body text-[13px]" style={{ color: 'var(--bark-300)' }}>unidades</span>
+            <button
+              type="button"
+              onClick={() => onAdjustUnits(product.id, Math.max(1, parseInt(newUnits) || 1))}
+              className="ml-auto px-3.5 py-2 rounded-xl font-body font-semibold text-[13px] text-white active:scale-95 transition-all"
+              style={{ background: 'var(--moss-500)' }}
+            >
+              Actualizar
+            </button>
+          </div>
+        </div>
+
+        {/* Option 2: update frequency */}
+        <div className="rounded-xl p-4 mb-3" style={{ background: 'var(--surface-elevated)', border: '1.5px solid rgba(196,184,166,0.3)' }}>
+          <div className="flex items-start gap-2 mb-3">
+            <span className="text-lg leading-none mt-0.5">🔄</span>
+            <div>
+              <p className="font-body font-semibold text-[14px]" style={{ color: 'var(--bark-700)' }}>Dura menos en mi casa</p>
+              <p className="font-body text-[12px] mt-0.5" style={{ color: 'var(--bark-400)' }}>
+                Ajustar recordatorio de {product.reminder_frequency_days} a lo que realmente dura
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min="1"
+              max="365"
+              value={newFrequency}
+              onChange={e => setNewFrequency(e.target.value)}
+              className="w-20 px-3 py-2 rounded-xl font-body text-[14px] text-center outline-none"
+              style={{ background: 'var(--surface-card)', border: '1.5px solid rgba(196,184,166,0.3)', color: 'var(--bark-700)' }}
+            />
+            <span className="font-body text-[13px]" style={{ color: 'var(--bark-300)' }}>dias</span>
+            <button
+              type="button"
+              onClick={() => onAdjustFrequency(product.id, Math.max(1, parseInt(newFrequency) || 1))}
+              className="ml-auto px-3.5 py-2 rounded-xl font-body font-semibold text-[13px] text-white active:scale-95 transition-all"
+              style={{ background: 'var(--moss-500)' }}
+            >
+              Actualizar
+            </button>
+          </div>
+        </div>
+
+        {/* Dismiss */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full px-4 py-2.5 rounded-xl font-body font-semibold text-[13px] transition-all"
+          style={{ color: 'var(--bark-400)', border: '1.5px solid rgba(196,184,166,0.3)' }}
+        >
+          Solo agotarlo
+        </button>
+      </div>
+    </div>
   )
 }
