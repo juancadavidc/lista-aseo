@@ -31,7 +31,9 @@ CREATE TABLE IF NOT EXISTS products (
     category        TEXT NOT NULL DEFAULT 'general',
     is_out_of_stock BOOLEAN NOT NULL DEFAULT false,
     reminder_frequency_days INTEGER NOT NULL DEFAULT 30,
+    units           INTEGER NOT NULL DEFAULT 1,
     last_purchased_at TIMESTAMPTZ,
+    last_out_of_stock_at TIMESTAMPTZ,
     organization_id TEXT,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );

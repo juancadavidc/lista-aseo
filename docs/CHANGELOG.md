@@ -55,6 +55,12 @@
 
 **Objetivo:** Features inteligentes que den valor inmediato y diferencien de una lista simple.
 
+### 2026-04-23 — Unidades por compra + detección de consumo acelerado
+- **Unidades por compra** — Nueva columna `products.units INTEGER NOT NULL DEFAULT 1` para registrar cuántas unidades se compran por vez (ej: 4 rollos, 2 frascos). Campo en el formulario de producto y badge visible en el card cuando `units > 1`.
+- **Detección de "agotado antes de tiempo"** — Nueva columna `products.last_out_of_stock_at TIMESTAMPTZ`. El endpoint `PATCH /api/products/:id` ahora sincroniza automáticamente este timestamp cuando se cambia `is_out_of_stock`; `POST /api/products/:id/purchase` lo limpia al comprar.
+- **Modal inteligente** — Al marcar un producto como agotado, si la duración real fue menor al 60% de la frecuencia configurada (`EARLY_OUT_OF_STOCK_RATIO = 0.6`), se abre un modal que ofrece dos ajustes: actualizar unidades o actualizar frecuencia (pre-llenada con la duración real observada). Tercera opción "Solo agotarlo" para descartar. No se guarda historial acumulado — sólo se detecta el caso inmediato comparando `last_purchased_at` vs ahora.
+- **Migraciones automáticas:** `addColumnIfMissing('products', 'units', ...)` y `addColumnIfMissing('products', 'last_out_of_stock_at', ...)` en el arranque del servidor.
+
 ### 2026-04-18 — Fix: Resetear tarea ya no borra el historial
 - **Bug:** El botón "Resetear" en Administración borraba todos los registros de `completions` de la tarea para hacerla reaparecer (dependía de `last_completed_at IS NULL`). Resultado: se perdía el historial completo de quién hizo la tarea y cuándo.
 - **Fix:** Nueva columna `tasks.last_reset_at TIMESTAMPTZ`. El endpoint ahora es `POST /api/tasks/:id/reset` (antes `DELETE /api/completions?task_id=...`) y sólo actualiza `last_reset_at = NOW()`. La query `/api/tasks/pending` incluye la tarea cuando `last_reset_at > last_completed_at`, preservando intacto el historial de completions.
