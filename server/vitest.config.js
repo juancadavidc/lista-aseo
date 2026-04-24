@@ -8,7 +8,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['lib/**/*.js'],
+      include: ['lib/**/*.js', 'auth.js'],
       exclude: ['**/*.test.js'],
       // lib/ debe mantenerse cubierto al 100%. Si se agregan helpers nuevos,
       // deben venir con tests.
