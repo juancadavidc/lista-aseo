@@ -9,6 +9,34 @@ const FREQ_ICONS = {
   monthly: '🗓️',
 }
 
+function frequencyState(raw) {
+  if (raw === '' || raw === null || raw === undefined) return 'empty'
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 1 || n > 365) return 'invalid'
+  return 'valid'
+}
+
+function ValidIcon() {
+  return (
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--moss-500)' }}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 13l4 4L19 7" />
+      </svg>
+    </span>
+  )
+}
+
+function InvalidIcon() {
+  return (
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--clay-500)' }}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 8v4M12 16h.01" />
+      </svg>
+    </span>
+  )
+}
+
 const DEFAULT_FORM = {
   name: '',
   description: '',
@@ -110,20 +138,23 @@ export default function TaskForm({ task, onSave, onCancel }) {
         <label className="block font-body font-semibold text-[12px] uppercase tracking-wider mb-1.5" style={{ color: 'var(--bark-400)' }}>
           Nombre *
         </label>
-        <input
-          type="text"
-          value={form.name}
-          onChange={e => set('name', e.target.value)}
-          placeholder="ej: Barrer la cocina"
-          className="w-full px-3.5 py-2.5 rounded-xl font-body text-[14px] focus:outline-none transition-all"
-          style={{
-            background: 'var(--surface-elevated)',
-            border: '1.5px solid rgba(196,184,166,0.3)',
-            color: 'var(--bark-700)',
-          }}
-          onFocus={e => e.target.style.borderColor = 'var(--moss-400)'}
-          onBlur={e => e.target.style.borderColor = 'rgba(196,184,166,0.3)'}
-        />
+        <div className="relative">
+          <input
+            type="text"
+            value={form.name}
+            onChange={e => set('name', e.target.value)}
+            placeholder="ej: Barrer la cocina"
+            className="w-full px-3.5 py-2.5 pr-10 rounded-xl font-body text-[14px] focus:outline-none transition-all"
+            style={{
+              background: 'var(--surface-elevated)',
+              border: '1.5px solid rgba(196,184,166,0.3)',
+              color: 'var(--bark-700)',
+            }}
+            onFocus={e => e.target.style.borderColor = 'var(--moss-400)'}
+            onBlur={e => e.target.style.borderColor = 'rgba(196,184,166,0.3)'}
+          />
+          {form.name.trim().length >= 2 && <ValidIcon />}
+        </div>
       </div>
 
       <div>
@@ -174,22 +205,31 @@ export default function TaskForm({ task, onSave, onCancel }) {
         <label className="block font-body font-semibold text-[12px] uppercase tracking-wider mb-1.5" style={{ color: 'var(--bark-400)' }}>
           Dias <span style={{ color: 'var(--bark-300)', fontWeight: 400, textTransform: 'none' }}>(default: {FREQUENCY_DEFAULTS[form.frequency_type]})</span>
         </label>
-        <input
-          type="number"
-          value={form.frequency_value}
-          onChange={e => set('frequency_value', e.target.value)}
-          placeholder={`${FREQUENCY_DEFAULTS[form.frequency_type]}`}
-          min={1}
-          max={365}
-          className="w-full px-3.5 py-2.5 rounded-xl font-body text-[14px] focus:outline-none"
-          style={{
-            background: 'var(--surface-elevated)',
-            border: '1.5px solid rgba(196,184,166,0.3)',
-            color: 'var(--bark-700)',
-          }}
-          onFocus={e => e.target.style.borderColor = 'var(--moss-400)'}
-          onBlur={e => e.target.style.borderColor = 'rgba(196,184,166,0.3)'}
-        />
+        <div className="relative">
+          <input
+            type="number"
+            value={form.frequency_value}
+            onChange={e => set('frequency_value', e.target.value)}
+            placeholder={`${FREQUENCY_DEFAULTS[form.frequency_type]}`}
+            min={1}
+            max={365}
+            className="w-full px-3.5 py-2.5 pr-10 rounded-xl font-body text-[14px] focus:outline-none"
+            style={{
+              background: 'var(--surface-elevated)',
+              border: `1.5px solid ${frequencyState(form.frequency_value) === 'invalid' ? 'var(--clay-500)' : 'rgba(196,184,166,0.3)'}`,
+              color: 'var(--bark-700)',
+            }}
+            onFocus={e => { if (frequencyState(form.frequency_value) !== 'invalid') e.target.style.borderColor = 'var(--moss-400)' }}
+            onBlur={e => { if (frequencyState(form.frequency_value) !== 'invalid') e.target.style.borderColor = 'rgba(196,184,166,0.3)' }}
+          />
+          {frequencyState(form.frequency_value) === 'valid' && <ValidIcon />}
+          {frequencyState(form.frequency_value) === 'invalid' && <InvalidIcon />}
+        </div>
+        {frequencyState(form.frequency_value) === 'invalid' && (
+          <p className="font-body text-[11px] mt-1" style={{ color: 'var(--clay-500)' }}>
+            Usa un numero entre 1 y 365
+          </p>
+        )}
       </div>
 
       {/* Product info section */}

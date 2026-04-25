@@ -55,6 +55,21 @@
 
 **Objetivo:** Features inteligentes que den valor inmediato y diferencien de una lista simple.
 
+### 2026-04-25 — DevEx: gates de PR (SQL seguro, multi-tenant, CHANGELOG, audit)
+- **Nuevo workflow `pr-checks.yml`** — Se separan los checks de calidad de código del workflow `ci.yml` (que sigue corriendo tests, build y coverage). Se ejecuta en cada PR a `main` y cada gate aparece como check independiente en la UI de GitHub, de modo que un reviewer puede ver exactamente qué falló.
+- **Gate SQL seguro** — `scripts/ci/check-sql-safety.sh` detecta interpolación de variables dentro de `.query()` (regla crítica #2 del CLAUDE.md). Revisa los archivos de `server/` modificados en el diff contra `main` y falla si encuentra template literals con `${...}` dentro de una llamada a `.query()`. Mensaje sugiere usar parameterized queries (`$1, $2...`).
+- **Gate multi-tenant** — `scripts/ci/check-multi-tenant.sh` revisa, sobre las líneas **agregadas** en el diff, que toda query sobre tablas multi-tenant (`tasks`, `products`, `shopping_items`, `shopping_categories`, `house_member_profiles`, `push_subscriptions`) incluya `organization_id` en una ventana de ±15 líneas. Escape hatch explícito: marcar la línea con `// @allow-cross-tenant` para casos intencionales (ej. queries de super-admin globales).
+- **Gate CHANGELOG** — `scripts/ci/check-changelog.sh` falla si el PR toca `frontend/` o `server/` (excluyendo tests) pero no actualiza `docs/CHANGELOG.md`. Cumple con la regla crítica #8 ("changelog obligatorio").
+- **Gate `npm audit`** — Corre `npm audit --omit=dev --audit-level=high` en `frontend/` y `server/` para cortar dependencias con vulnerabilidades conocidas antes de mergear.
+
+### 2026-04-25 — UI quick wins: búsqueda, agrupación, ordenamiento y validación
+- **Escala completa de tokens CSS** — Se definieron los tokens que se usaban pero no existían y caían al fallback: `--bark-200`, `--bark-500`, `--clay-400`, `--moss-100..600`. Además se agregaron niveles intermedios de urgencia (`--urgency-critical`, `--urgency-medium`) para estados que no podían representarse con sólo `high`/`low`.
+- **`TaskCard` usa los 3 niveles de urgencia** — `getUrgencyColor` ahora distingue: **critical** (≥ 7 días de retraso), **high** (1-6 días o nunca completada), **medium** ("desde ayer"), **low** (recién). Antes solo se pintaba binario.
+- **Agrupación por urgencia en Home** — Las tareas pendientes se muestran separadas en dos grupos con headers propios: **Atrasadas** (≥ 2 días) y **Del día** (< 2 días). Helper `urgencyBucket(task, lastCompletedAt)` en `lib/tasks.js`.
+- **Búsqueda en Home, ShoppingList y Products** — Nuevo componente reutilizable `components/SearchInput.jsx` con icono, botón clear y estilo consistente. Aparece cuando hay ≥ 5 ítems (≥ 4 en Products). Busca por nombre, descripción, producto asociado, nota o categoría. Estado "Sin resultados" dedicado.
+- **Ordenamiento en Products** — Dropdown al lado del search con tres modos: **Urgencia** (default: critical→low, tie-break por días restantes), **Próximo a agotarse** (por `daysUntilNeeded`), **Nombre (A-Z)** con `localeCompare` en español.
+- **Validación viva en `TaskForm`** — Icono verde ✓ aparece en el campo **Nombre** cuando hay ≥ 2 caracteres y en **Días** cuando es un entero entre 1 y 365. Si los días son inválidos se pinta el borde de clay y se muestra mensaje de ayuda.
+
 ### 2026-04-23 — Unidades por compra + detección de consumo acelerado
 - **Unidades por compra** — Nueva columna `products.units INTEGER NOT NULL DEFAULT 1` para registrar cuántas unidades se compran por vez (ej: 4 rollos, 2 frascos). Campo en el formulario de producto y badge visible en el card cuando `units > 1`.
 - **Detección de "agotado antes de tiempo"** — Nueva columna `products.last_out_of_stock_at TIMESTAMPTZ`. El endpoint `PATCH /api/products/:id` ahora sincroniza automáticamente este timestamp cuando se cambia `is_out_of_stock`; `POST /api/products/:id/purchase` lo limpia al comprar.

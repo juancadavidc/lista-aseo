@@ -50,6 +50,15 @@ export function overdueLabel(task, lastCompletedAt) {
   return `hace poco`
 }
 
+export function urgencyBucket(task, lastCompletedAt) {
+  if (!lastCompletedAt) return 'overdue'
+  const hours = frequencyToHours(task.frequency_type, task.frequency_value)
+  const dueSince = Date.now() - (new Date(lastCompletedAt).getTime() + hours * 3600 * 1000)
+  const days = Math.floor(dueSince / 86400000)
+  if (days >= 2) return 'overdue'
+  return 'today'
+}
+
 export function frequencyLabel(task) {
   const base = FREQUENCY_LABELS[task.frequency_type] || task.frequency_type
   if (task.frequency_value && task.frequency_value !== FREQUENCY_DEFAULTS[task.frequency_type]) {

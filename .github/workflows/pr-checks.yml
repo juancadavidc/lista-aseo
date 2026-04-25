@@ -1,0 +1,71 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  sql-safety:
+    name: SQL Safety (parameterized queries)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check parameterized queries
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1
+          bash scripts/ci/check-sql-safety.sh
+
+  multi-tenant:
+    name: Multi-tenant (organization_id filter)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check organization_id filtering
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1
+          bash scripts/ci/check-multi-tenant.sh
+
+  changelog:
+    name: CHANGELOG updated
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check CHANGELOG entry
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1
+          bash scripts/ci/check-changelog.sh
+
+  npm-audit:
+    name: npm audit (high severity)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+            server/package-lock.json
+
+      - name: Audit frontend
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit server
+        working-directory: server
+        run: npm audit --omit=dev --audit-level=high

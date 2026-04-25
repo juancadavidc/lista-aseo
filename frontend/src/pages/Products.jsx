@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import {
   fetchProducts, createProduct, updateProduct, deleteProduct, purchaseProduct,
 } from '../lib/api'
+import SearchInput from '../components/SearchInput'
 
 // Si al marcar agotado el producto duró menos de este porcentaje de su frecuencia
 // configurada, abrimos el modal de ajuste. Subir = mas sensible, bajar = mas laxo.
@@ -56,6 +57,22 @@ function reminderUrgency(product) {
   return 'low'
 }
 
+const URGENCY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 }
+
+function daysUntilNeeded(product) {
+  if (product.is_out_of_stock) return -Infinity
+  if (!product.last_purchased_at) return -Infinity
+  const lastPurchase = new Date(product.last_purchased_at).getTime()
+  const nextDue = lastPurchase + product.reminder_frequency_days * 24 * 3600 * 1000
+  return Math.ceil((nextDue - Date.now()) / (24 * 3600 * 1000))
+}
+
+const SORT_OPTIONS = [
+  { value: 'urgency', label: 'Urgencia' },
+  { value: 'next', label: 'Proximo a agotarse' },
+  { value: 'name', label: 'Nombre (A-Z)' },
+]
+
 export default function Products() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -66,6 +83,8 @@ export default function Products() {
   const [deletingId, setDeletingId] = useState(null)
   const [toast, setToast] = useState(null)
   const [earlyOutModal, setEarlyOutModal] = useState(null)
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState('urgency')
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -174,6 +193,29 @@ export default function Products() {
     return Date.now() >= nextDue
   }).length
 
+  const visibleProducts = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    const filtered = q
+      ? products.filter(p =>
+          (p.name || '').toLowerCase().includes(q) ||
+          (p.category || '').toLowerCase().includes(q)
+        )
+      : products.slice()
+    if (sort === 'name') {
+      filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }))
+    } else if (sort === 'next') {
+      filtered.sort((a, b) => daysUntilNeeded(a) - daysUntilNeeded(b))
+    } else {
+      filtered.sort((a, b) => {
+        const ua = URGENCY_ORDER[reminderUrgency(a)]
+        const ub = URGENCY_ORDER[reminderUrgency(b)]
+        if (ua !== ub) return ua - ub
+        return daysUntilNeeded(a) - daysUntilNeeded(b)
+      })
+    }
+    return filtered
+  }, [products, query, sort])
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4 fade-in">
@@ -245,7 +287,7 @@ export default function Products() {
       </div>
 
       {/* Category filter */}
-      <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
         {CATEGORIES.map(cat => (
           <button
             key={cat.value}
@@ -262,6 +304,48 @@ export default function Products() {
         ))}
       </div>
 
+      {/* Search + sort */}
+      {products.length >= 4 && (
+        <div className="flex gap-2 mb-5">
+          <div className="flex-1 min-w-0">
+            <SearchInput
+              value={query}
+              onChange={setQuery}
+              placeholder="Buscar producto..."
+            />
+          </div>
+          <div className="relative flex-shrink-0">
+            <select
+              value={sort}
+              onChange={e => setSort(e.target.value)}
+              aria-label="Ordenar"
+              className="appearance-none pl-8 pr-7 py-2.5 rounded-xl font-body text-[13px] font-semibold outline-none transition-all cursor-pointer"
+              style={{
+                background: 'var(--surface-elevated)',
+                border: '1.5px solid rgba(196,184,166,0.3)',
+                color: 'var(--bark-700)',
+              }}
+              onFocus={e => e.target.style.borderColor = 'var(--moss-400)'}
+              onBlur={e => e.target.style.borderColor = 'rgba(196,184,166,0.3)'}
+            >
+              {SORT_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--bark-400)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M3 6h18M7 12h10M11 18h2"/>
+              </svg>
+            </span>
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--bark-300)' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Product list */}
       {products.length === 0 ? (
         <div className="text-center py-12 fade-in">
@@ -274,9 +358,18 @@ export default function Products() {
             Agregar primer producto
           </button>
         </div>
+      ) : visibleProducts.length === 0 ? (
+        <div className="text-center py-10 fade-in">
+          <p className="font-body font-semibold text-[14px]" style={{ color: 'var(--bark-400)' }}>
+            Sin resultados para "{query}"
+          </p>
+          <p className="font-body text-[12px] mt-0.5" style={{ color: 'var(--bark-300)' }}>
+            Probá con otro termino o categoria
+          </p>
+        </div>
       ) : (
         <div className="flex flex-col gap-2.5 stagger">
-          {products.map(product => (
+          {visibleProducts.map(product => (
             <ProductCard
               key={product.id}
               product={product}
