@@ -55,6 +55,13 @@
 
 **Objetivo:** Features inteligentes que den valor inmediato y diferencien de una lista simple.
 
+### 2026-04-25 — DevEx: gates de PR (SQL seguro, multi-tenant, CHANGELOG, audit)
+- **Nuevo workflow `pr-checks.yml`** — Se separan los checks de calidad de código del workflow `ci.yml` (que sigue corriendo tests, build y coverage). Se ejecuta en cada PR a `main` y cada gate aparece como check independiente en la UI de GitHub, de modo que un reviewer puede ver exactamente qué falló.
+- **Gate SQL seguro** — `scripts/ci/check-sql-safety.sh` detecta interpolación de variables dentro de `.query()` (regla crítica #2 del CLAUDE.md). Revisa los archivos de `server/` modificados en el diff contra `main` y falla si encuentra template literals con `${...}` dentro de una llamada a `.query()`. Mensaje sugiere usar parameterized queries (`$1, $2...`).
+- **Gate multi-tenant** — `scripts/ci/check-multi-tenant.sh` revisa, sobre las líneas **agregadas** en el diff, que toda query sobre tablas multi-tenant (`tasks`, `products`, `shopping_items`, `shopping_categories`, `house_member_profiles`, `push_subscriptions`) incluya `organization_id` en una ventana de ±15 líneas. Escape hatch explícito: marcar la línea con `// @allow-cross-tenant` para casos intencionales (ej. queries de super-admin globales).
+- **Gate CHANGELOG** — `scripts/ci/check-changelog.sh` falla si el PR toca `frontend/` o `server/` (excluyendo tests) pero no actualiza `docs/CHANGELOG.md`. Cumple con la regla crítica #8 ("changelog obligatorio").
+- **Gate `npm audit`** — Corre `npm audit --omit=dev --audit-level=high` en `frontend/` y `server/` para cortar dependencias con vulnerabilidades conocidas antes de mergear.
+
 ### 2026-04-25 — UI quick wins: búsqueda, agrupación, ordenamiento y validación
 - **Escala completa de tokens CSS** — Se definieron los tokens que se usaban pero no existían y caían al fallback: `--bark-200`, `--bark-500`, `--clay-400`, `--moss-100..600`. Además se agregaron niveles intermedios de urgencia (`--urgency-critical`, `--urgency-medium`) para estados que no podían representarse con sólo `high`/`low`.
 - **`TaskCard` usa los 3 niveles de urgencia** — `getUrgencyColor` ahora distingue: **critical** (≥ 7 días de retraso), **high** (1-6 días o nunca completada), **medium** ("desde ayer"), **low** (recién). Antes solo se pintaba binario.
