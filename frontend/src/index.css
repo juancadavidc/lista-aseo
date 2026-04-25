@@ -7,12 +7,21 @@
   --surface-card: #faf8f5;
   --surface-elevated: #ffffff;
   --bark-700: #2a231a;
+  --bark-500: #5d4f3b;
   --bark-400: #7a6a52;
   --bark-300: #9e8b72;
-  --moss-400: #6a9960;
+  --bark-200: #c4b8a6;
+  --moss-600: #3a5e34;
   --moss-500: #4d7a44;
+  --moss-400: #6a9960;
+  --moss-300: #94b78c;
+  --moss-200: #c3d6be;
+  --moss-100: #e8f0e5;
   --clay-500: #b85a3a;
+  --clay-400: #d07a5c;
+  --urgency-critical: #a9472b;
   --urgency-high: #c4714f;
+  --urgency-medium: #d9a441;
   --urgency-low: #6a9960;
 }
 

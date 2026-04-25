@@ -5,6 +5,7 @@ import {
   deleteShoppingItem, clearPurchasedItems, fetchShoppingCategories,
 } from '../lib/api'
 import { suggestCategory } from '../lib/smartTags'
+import SearchInput from '../components/SearchInput'
 
 export default function ShoppingList() {
   const [items, setItems] = useState([])
@@ -18,6 +19,7 @@ export default function ShoppingList() {
   const [deletingId, setDeletingId] = useState(null)
   const [toast, setToast] = useState(null)
   const [dismissedFor, setDismissedFor] = useState('')
+  const [query, setQuery] = useState('')
 
   const suggestion = useMemo(() => {
     if (!newName.trim() || newCategoryId) return null
@@ -102,8 +104,20 @@ export default function ShoppingList() {
     }
   }
 
-  const pending = items.filter(i => !i.is_purchased)
-  const purchased = items.filter(i => i.is_purchased)
+  const matchesQuery = useCallback((item) => {
+    const q = query.trim().toLowerCase()
+    if (!q) return true
+    return (
+      (item.name || '').toLowerCase().includes(q) ||
+      (item.note || '').toLowerCase().includes(q) ||
+      (item.category_name || '').toLowerCase().includes(q)
+    )
+  }, [query])
+
+  const pending = items.filter(i => !i.is_purchased && matchesQuery(i))
+  const purchased = items.filter(i => i.is_purchased && matchesQuery(i))
+  const hasAnyItem = items.length > 0
+  const hasVisibleItem = pending.length > 0 || purchased.length > 0
 
   // Group pending items by category
   const grouped = groupByCategory(pending, categories)
@@ -287,14 +301,34 @@ export default function ShoppingList() {
         </div>
       </form>
 
+      {/* Search */}
+      {items.length >= 5 && (
+        <div className="mb-4">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Buscar en la lista..."
+          />
+        </div>
+      )}
+
       {/* Pending items - grouped by category */}
-      {pending.length === 0 && purchased.length === 0 ? (
+      {!hasAnyItem ? (
         <div className="text-center py-12 fade-in">
           <div className="w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center text-2xl" style={{ background: 'rgba(106,153,96,0.08)' }}>
             🛒
           </div>
           <p className="font-display text-xl mb-1" style={{ color: 'var(--bark-700)' }}>Lista vacia</p>
           <p className="font-body text-sm" style={{ color: 'var(--bark-300)' }}>Agrega cosas que veas que se necesitan comprar</p>
+        </div>
+      ) : !hasVisibleItem ? (
+        <div className="text-center py-10 fade-in">
+          <p className="font-body font-semibold text-[14px]" style={{ color: 'var(--bark-400)' }}>
+            Sin resultados para "{query}"
+          </p>
+          <p className="font-body text-[12px] mt-0.5" style={{ color: 'var(--bark-300)' }}>
+            Probá con otro termino
+          </p>
         </div>
       ) : (
         <>

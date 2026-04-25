@@ -55,6 +55,14 @@
 
 **Objetivo:** Features inteligentes que den valor inmediato y diferencien de una lista simple.
 
+### 2026-04-25 — UI quick wins: búsqueda, agrupación, ordenamiento y validación
+- **Escala completa de tokens CSS** — Se definieron los tokens que se usaban pero no existían y caían al fallback: `--bark-200`, `--bark-500`, `--clay-400`, `--moss-100..600`. Además se agregaron niveles intermedios de urgencia (`--urgency-critical`, `--urgency-medium`) para estados que no podían representarse con sólo `high`/`low`.
+- **`TaskCard` usa los 3 niveles de urgencia** — `getUrgencyColor` ahora distingue: **critical** (≥ 7 días de retraso), **high** (1-6 días o nunca completada), **medium** ("desde ayer"), **low** (recién). Antes solo se pintaba binario.
+- **Agrupación por urgencia en Home** — Las tareas pendientes se muestran separadas en dos grupos con headers propios: **Atrasadas** (≥ 2 días) y **Del día** (< 2 días). Helper `urgencyBucket(task, lastCompletedAt)` en `lib/tasks.js`.
+- **Búsqueda en Home, ShoppingList y Products** — Nuevo componente reutilizable `components/SearchInput.jsx` con icono, botón clear y estilo consistente. Aparece cuando hay ≥ 5 ítems (≥ 4 en Products). Busca por nombre, descripción, producto asociado, nota o categoría. Estado "Sin resultados" dedicado.
+- **Ordenamiento en Products** — Dropdown al lado del search con tres modos: **Urgencia** (default: critical→low, tie-break por días restantes), **Próximo a agotarse** (por `daysUntilNeeded`), **Nombre (A-Z)** con `localeCompare` en español.
+- **Validación viva en `TaskForm`** — Icono verde ✓ aparece en el campo **Nombre** cuando hay ≥ 2 caracteres y en **Días** cuando es un entero entre 1 y 365. Si los días son inválidos se pinta el borde de clay y se muestra mensaje de ayuda.
+
 ### 2026-04-23 — Unidades por compra + detección de consumo acelerado
 - **Unidades por compra** — Nueva columna `products.units INTEGER NOT NULL DEFAULT 1` para registrar cuántas unidades se compran por vez (ej: 4 rollos, 2 frascos). Campo en el formulario de producto y badge visible en el card cuando `units > 1`.
 - **Detección de "agotado antes de tiempo"** — Nueva columna `products.last_out_of_stock_at TIMESTAMPTZ`. El endpoint `PATCH /api/products/:id` ahora sincroniza automáticamente este timestamp cuando se cambia `is_out_of_stock`; `POST /api/products/:id/purchase` lo limpia al comprar.

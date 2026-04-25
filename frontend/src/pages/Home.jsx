@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
-import { fetchPendingTasks, completeTask, overdueLabel, frequencyLabel } from '../lib/tasks'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { fetchPendingTasks, completeTask, overdueLabel, frequencyLabel, urgencyBucket } from '../lib/tasks'
 import TaskCard from '../components/TaskCard'
 import ProgressRing from '../components/ProgressRing'
+import SearchInput from '../components/SearchInput'
 
 export default function Home() {
   const [tasks, setTasks] = useState([])
   const [totalActive, setTotalActive] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [query, setQuery] = useState('')
 
   const loadTasks = useCallback(async () => {
     try {
@@ -19,6 +21,7 @@ export default function Home() {
           ...t,
           overdueLabel: overdueLabel(t, t.lastCompletedAt),
           frequencyLabel: frequencyLabel(t),
+          urgency: urgencyBucket(t, t.lastCompletedAt),
         }))
       )
     } catch (err) {
@@ -42,6 +45,21 @@ export default function Home() {
       console.error(err)
     }
   }
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return tasks
+    return tasks.filter(t =>
+      (t.name || '').toLowerCase().includes(q) ||
+      (t.description || '').toLowerCase().includes(q) ||
+      (t.product_name || '').toLowerCase().includes(q)
+    )
+  }, [tasks, query])
+
+  const grouped = useMemo(() => ({
+    overdue: filtered.filter(t => t.urgency === 'overdue'),
+    today: filtered.filter(t => t.urgency !== 'overdue'),
+  }), [filtered])
 
   if (loading) {
     return (
@@ -99,13 +117,43 @@ export default function Home() {
         )}
       </div>
 
+      {/* Search */}
+      {tasks.length >= 5 && (
+        <div className="mb-4">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Buscar tarea, producto..."
+          />
+        </div>
+      )}
+
       {/* Task list */}
       {tasks.length > 0 ? (
-        <div className="flex flex-col gap-3 stagger">
-          {tasks.map(task => (
-            <TaskCard key={task.id} task={task} onComplete={handleComplete} />
-          ))}
-        </div>
+        filtered.length === 0 ? (
+          <NoMatchState query={query} />
+        ) : (
+          <div className="flex flex-col gap-5">
+            {grouped.overdue.length > 0 && (
+              <TaskGroup
+                title="Atrasadas"
+                count={grouped.overdue.length}
+                dotColor="var(--urgency-critical)"
+                tasks={grouped.overdue}
+                onComplete={handleComplete}
+              />
+            )}
+            {grouped.today.length > 0 && (
+              <TaskGroup
+                title="Del dia"
+                count={grouped.today.length}
+                dotColor="var(--urgency-low)"
+                tasks={grouped.today}
+                onComplete={handleComplete}
+              />
+            )}
+          </div>
+        )
       ) : (
         <EmptyState />
       )}
@@ -126,6 +174,45 @@ export default function Home() {
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+function TaskGroup({ title, count, dotColor, tasks, onComplete }) {
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-2 px-1">
+        <span className="w-2 h-2 rounded-full" style={{ background: dotColor }} />
+        <h3 className="font-body font-semibold text-[11px] uppercase tracking-[0.1em]" style={{ color: 'var(--bark-400)' }}>
+          {title}
+        </h3>
+        <span className="font-body text-[11px] font-semibold" style={{ color: 'var(--bark-300)' }}>
+          {count}
+        </span>
+      </div>
+      <div className="flex flex-col gap-3 stagger">
+        {tasks.map(task => (
+          <TaskCard key={task.id} task={task} onComplete={onComplete} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function NoMatchState({ query }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-center fade-in">
+      <div className="w-12 h-12 mb-3 rounded-xl flex items-center justify-center" style={{ background: 'rgba(158,139,114,0.12)' }}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--bark-300)" strokeWidth="2" strokeLinecap="round">
+          <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+        </svg>
+      </div>
+      <p className="font-body font-semibold text-[14px]" style={{ color: 'var(--bark-400)' }}>
+        Sin resultados para "{query}"
+      </p>
+      <p className="font-body text-[12px] mt-0.5" style={{ color: 'var(--bark-300)' }}>
+        Probá con otro termino
+      </p>
     </div>
   )
 }

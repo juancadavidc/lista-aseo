@@ -25,9 +25,12 @@ const FREQ_ICONS = {
 }
 
 function getUrgencyColor(task) {
+  const label = task.overdueLabel || ''
   if (!task.lastCompletedAt) return 'var(--urgency-high)'
-  const label = task.overdueLabel
-  if (label.includes('días') || label === 'desde ayer') return 'var(--urgency-high)'
+  const daysMatch = label.match(/hace (\d+) dias/)
+  if (daysMatch && parseInt(daysMatch[1], 10) >= 7) return 'var(--urgency-critical)'
+  if (daysMatch || label.includes('días')) return 'var(--urgency-high)'
+  if (label === 'desde ayer') return 'var(--urgency-medium)'
   return 'var(--urgency-low)'
 }
 
