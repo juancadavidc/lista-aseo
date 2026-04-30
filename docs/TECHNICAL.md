@@ -75,6 +75,8 @@ lista-aseo/
 - **house_member_profiles** — Avatar y color por miembro de cada casa
 - **super_admins** — Usuarios con acceso al panel de super admin
 - **push_subscriptions** — Suscripciones push por usuario y casa
+- **plants** — Plantas del hogar con frecuencia de riego y `last_watered_at`
+- **plant_watering_history** — Registro de cada riego (quién y cuándo)
 
 ### Tablas de auth (better-auth)
 - user, session, organization, member — Manejadas automáticamente
@@ -98,6 +100,7 @@ lista-aseo/
 | HouseSettings | `pages/HouseSettings.jsx` | Configuración de la casa |
 | Admin | `pages/Admin.jsx` | Administración de tareas |
 | Products | `pages/Products.jsx` | Gestión de productos de limpieza |
+| Plants | `pages/Plants.jsx` | Gestión de plantas y riego |
 | ShoppingList | `pages/ShoppingList.jsx` | Lista de compras |
 | ShoppingAdmin | `pages/ShoppingAdmin.jsx` | Admin de categorías de compras |
 | Stats | `pages/Stats.jsx` | Estadísticas de participación |

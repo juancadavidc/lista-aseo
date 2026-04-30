@@ -84,3 +84,26 @@ CREATE TABLE IF NOT EXISTS super_admins (
     user_id    TEXT NOT NULL UNIQUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS plants (
+    id                       UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name                     TEXT NOT NULL,
+    notes                    TEXT,
+    watering_frequency_days  INTEGER NOT NULL DEFAULT 7,
+    last_watered_at          TIMESTAMPTZ,
+    organization_id          TEXT NOT NULL,
+    created_at               TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_plants_org ON plants(organization_id);
+
+CREATE TABLE IF NOT EXISTS plant_watering_history (
+    id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    plant_id    UUID NOT NULL REFERENCES plants(id) ON DELETE CASCADE,
+    watered_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    watered_by  TEXT,
+    user_id     TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_plant_watering_plant_id ON plant_watering_history(plant_id);
+CREATE INDEX IF NOT EXISTS idx_plant_watering_at ON plant_watering_history(watered_at DESC);

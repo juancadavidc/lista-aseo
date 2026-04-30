@@ -8,6 +8,16 @@
 
 ## [Fase 0] — MVP Fundacional
 
+### 2026-04-30 — Gestión de plantas (extensión MVP)
+- **Nueva entidad `plants`** — tabla con `name`, `notes`, `watering_frequency_days` (default 7), `last_watered_at`, `organization_id`. Multi-tenant filtrado por `organization_id` en todas las queries (regla crítica #1).
+- **Historial de riego (`plant_watering_history`)** — registra cada riego con `watered_at`, `watered_by`, `user_id`. FK a `plants` con `ON DELETE CASCADE`.
+- **Endpoints REST** — `GET/POST /api/plants`, `PATCH/DELETE /api/plants/:id`, `POST /api/plants/:id/water` (atómico: inserta historial + actualiza `last_watered_at`), `GET /api/plants/:id/history`.
+- **Página `/plantas`** — lista con tarjetas, indicador de estado calculado en frontend (vencido / regar hoy / regar mañana / faltan N días / sin regar), badge de frecuencia, botón "Regué esta planta" (1 tap), modal de historial cronológico, formulario con presets (Diario / Cada 3 días / Semanal / Quincenal). Búsqueda y ordenamiento aparecen al tener ≥ 4 plantas.
+- **Push notification** al regar una planta, reusando `sendPushToHouse` con tag `plant-watered`.
+- **Limpieza al eliminar casa** — `DELETE /api/houses/:id` borra primero `plant_watering_history` y luego `plants` de la organización dentro de la transacción.
+- **Migración automática** — `migrate()` crea las tablas `plants` y `plant_watering_history` con sus índices si no existen.
+- **Tests** — wrappers del API client (`fetchPlants`, `createPlant`, `updatePlant`, `deletePlant`, `waterPlant`, `fetchPlantHistory`) y página `Plants` (estado vacío, indicador de vencido / sin regar, alta, registro de riego, apertura de historial).
+
 ### 2026-04-08 — Reorganización estratégica
 - Creado rol de CEO/CTO con visión de producto y roadmap de monetización
 - Separada documentación técnica en `docs/TECHNICAL.md`
