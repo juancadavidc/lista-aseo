@@ -174,6 +174,32 @@ export async function clearPurchasedItems() {
   return request('/shopping-items/clear-purchased', { method: 'DELETE' })
 }
 
+// --- Plants ---
+
+export async function fetchPlants() {
+  return request('/plants')
+}
+
+export async function createPlant(plant) {
+  return request('/plants', { method: 'POST', body: JSON.stringify(plant) })
+}
+
+export async function updatePlant(id, updates) {
+  return request(`/plants/${id}`, { method: 'PATCH', body: JSON.stringify(updates) })
+}
+
+export async function deletePlant(id) {
+  return request(`/plants/${id}`, { method: 'DELETE' })
+}
+
+export async function waterPlant(id) {
+  return request(`/plants/${id}/water`, { method: 'POST' })
+}
+
+export async function fetchPlantHistory(id, limit = 20) {
+  return request(`/plants/${id}/history?limit=${limit}`)
+}
+
 // --- Stats ---
 
 export async function fetchParticipationStats(period = 'month') {

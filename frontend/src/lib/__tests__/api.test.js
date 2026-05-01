@@ -157,6 +157,14 @@ describe('api.js — wrappers de productos, compras, stats, push, admin, casas',
     ['seedHouse', [], '/houses/seed'],
     ['seedHouse', ['large', [{ name: 't' }]], '/houses/seed'],
     ['deleteHouse', ['house-9'], '/houses/house-9'],
+    // Plants
+    ['fetchPlants', [], '/plants'],
+    ['createPlant', [{ name: 'Monstera' }], '/plants'],
+    ['updatePlant', ['p1', { notes: 'sala' }], '/plants/p1'],
+    ['deletePlant', ['p1'], '/plants/p1'],
+    ['waterPlant', ['p1'], '/plants/p1/water'],
+    ['fetchPlantHistory', ['p1', 5], '/plants/p1/history?limit=5'],
+    ['fetchPlantHistory', ['p1'], '/plants/p1/history?limit=20'],
   ]
 
   it.each(cases)('%s → %s', async (fn, args, expectedPath) => {

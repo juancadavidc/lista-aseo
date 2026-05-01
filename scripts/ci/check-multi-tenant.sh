@@ -9,7 +9,7 @@
 set -euo pipefail
 
 BASE_REF="${BASE_REF:-origin/main}"
-TABLES="tasks|products|shopping_items|shopping_categories|house_member_profiles|push_subscriptions"
+TABLES="tasks|products|shopping_items|shopping_categories|house_member_profiles|push_subscriptions|plants|plant_watering_history"
 
 mapfile -t FILES < <(git diff --name-only --diff-filter=ACMR "$BASE_REF"...HEAD -- 'server/**/*.js' 'server/*.js' 2>/dev/null || true)
 

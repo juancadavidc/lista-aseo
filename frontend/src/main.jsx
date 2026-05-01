@@ -5,6 +5,7 @@ import './index.css'
 import Home from './pages/Home'
 import Admin from './pages/Admin'
 import Products from './pages/Products'
+import Plants from './pages/Plants'
 import ShoppingList from './pages/ShoppingList'
 import ShoppingAdmin from './pages/ShoppingAdmin'
 import Login from './pages/Login'
@@ -56,6 +57,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route element={<RequireAuth><RequireHouse><Layout /></RequireHouse></RequireAuth>}>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<Products />} />
+          <Route path="/plants" element={<Plants />} />
           <Route path="/shopping" element={<ShoppingList />} />
           <Route path="/shopping/admin" element={<ShoppingAdmin />} />
           <Route path="/stats" element={<Stats />} />

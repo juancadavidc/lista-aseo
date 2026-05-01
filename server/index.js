@@ -224,6 +224,11 @@ app.delete('/api/houses/:id', requireAuth, async (req, res) => {
     await client.query('DELETE FROM shopping_categories WHERE organization_id = $1', [houseId])
     await client.query('DELETE FROM house_member_profiles WHERE organization_id = $1', [houseId])
     await client.query('DELETE FROM push_subscriptions WHERE organization_id = $1', [houseId])
+    await client.query(
+      'DELETE FROM plant_watering_history WHERE plant_id IN (SELECT id FROM plants WHERE organization_id = $1)',
+      [houseId]
+    )
+    await client.query('DELETE FROM plants WHERE organization_id = $1', [houseId])
     // Better-auth tables
     await client.query('DELETE FROM "invitation" WHERE "organizationId" = $1', [houseId])
     await client.query('DELETE FROM "member" WHERE "organizationId" = $1', [houseId])
@@ -836,6 +841,126 @@ app.delete('/api/shopping-items/:id', requireAuth, requireHouse, async (req, res
   }
 })
 
+// --- Plants (scoped by house) ---
+
+// GET /api/plants
+app.get('/api/plants', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM plants WHERE organization_id = $1 ORDER BY name',
+      [req.house.id]
+    )
+    res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/plants
+app.post('/api/plants', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const { name, notes, watering_frequency_days } = req.body
+    if (!name?.trim()) return res.status(400).json({ error: 'name is required' })
+    const freq = Math.max(1, parseInt(watering_frequency_days) || 7)
+    const { rows } = await pool.query(
+      `INSERT INTO plants (name, notes, watering_frequency_days, organization_id)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [name.trim(), notes?.trim() || null, freq, req.house.id]
+    )
+    res.json(rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// PATCH /api/plants/:id — el formulario siempre envia los 3 campos, por eso updates completos.
+app.patch('/api/plants/:id', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, notes, watering_frequency_days } = req.body
+    if (!name?.trim()) return res.status(400).json({ error: 'name is required' })
+    const freq = Math.max(1, parseInt(watering_frequency_days) || 7)
+
+    const { rows } = await pool.query(
+      `UPDATE plants SET name = $3, notes = $4, watering_frequency_days = $5
+       WHERE id = $1 AND organization_id = $2 RETURNING *`,
+      [id, req.house.id, name.trim(), notes?.trim() || null, freq]
+    )
+    if (rows.length === 0) return res.status(404).json({ error: 'Plant not found' })
+    res.json(rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// DELETE /api/plants/:id
+app.delete('/api/plants/:id', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { rowCount } = await pool.query(
+      'DELETE FROM plants WHERE id = $1 AND organization_id = $2',
+      [id, req.house.id]
+    )
+    if (rowCount === 0) return res.status(404).json({ error: 'Plant not found' })
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/plants/:id/water — registra riego y actualiza last_watered_at
+app.post('/api/plants/:id/water', requireAuth, requireHouse, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const { id } = req.params
+    const { rows: plantRows } = await client.query(
+      'SELECT id, name FROM plants WHERE id = $1 AND organization_id = $2',
+      [id, req.house.id]
+    )
+    if (plantRows.length === 0) return res.status(404).json({ error: 'Plant not found' })
+
+    await client.query('BEGIN')
+    await client.query(
+      'INSERT INTO plant_watering_history (plant_id, watered_at, watered_by, user_id) VALUES ($1, NOW(), $2, $3)',
+      [id, req.user.name || null, req.user.id]
+    )
+    const { rows } = await client.query(
+      'UPDATE plants SET last_watered_at = NOW() WHERE id = $1 AND organization_id = $2 RETURNING *',
+      [id, req.house.id]
+    )
+    await client.query('COMMIT')
+
+    sendPushToHouse(req.house.id, {
+      title: 'Planta regada',
+      body: `${req.user.name || 'Alguien'} rego: ${plantRows[0].name}`,
+      tag: 'plant-watered',
+    })
+
+    res.json(rows[0])
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    res.status(500).json({ error: err.message })
+  } finally {
+    client.release()
+  }
+})
+
+// GET /api/plants/:id/history
+app.get('/api/plants/:id/history', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 20
+    const { rows } = await pool.query(`
+      SELECT h.* FROM plant_watering_history h
+      JOIN plants p ON h.plant_id = p.id
+      WHERE h.plant_id = $1 AND p.organization_id = $2
+      ORDER BY h.watered_at DESC LIMIT $3
+    `, [req.params.id, req.house.id, limit])
+    res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // --- Stats ---
 
 // GET /api/stats/participation?period=week|month|all
@@ -1133,6 +1258,32 @@ async function migrate() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `)
+
+    // Plants tables
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS plants (
+        id                       UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        name                     TEXT NOT NULL,
+        notes                    TEXT,
+        watering_frequency_days  INTEGER NOT NULL DEFAULT 7,
+        last_watered_at          TIMESTAMPTZ,
+        organization_id          TEXT NOT NULL,
+        created_at               TIMESTAMPTZ DEFAULT NOW()
+      )
+    `)
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_plants_org ON plants(organization_id)')
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS plant_watering_history (
+        id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        plant_id    UUID NOT NULL REFERENCES plants(id) ON DELETE CASCADE,
+        watered_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        watered_by  TEXT,
+        user_id     TEXT
+      )
+    `)
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_plant_watering_plant_id ON plant_watering_history(plant_id)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_plant_watering_at ON plant_watering_history(watered_at DESC)')
 
     // Push subscriptions table
     await pool.query(`
