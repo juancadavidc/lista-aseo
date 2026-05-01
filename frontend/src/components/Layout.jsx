@@ -11,6 +11,7 @@ export default function Layout() {
   const { data: session } = authClient.useSession()
   const [profile, setProfile] = useState(null)
   const [showDropdown, setShowDropdown] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const dropdownRef = useRef(null)
 
@@ -36,6 +37,22 @@ export default function Layout() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key === 'Escape') setShowMenu(false)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [])
+
+  useEffect(() => {
+    if (showMenu) {
+      const prev = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      return () => { document.body.style.overflow = prev }
+    }
+  }, [showMenu])
 
   async function handleLogout() {
     clearActiveHouse()
@@ -75,45 +92,38 @@ export default function Layout() {
       {/* Header */}
       <header className="glass-header sticky top-0 z-20 px-4">
         <div className="max-w-lg mx-auto flex items-center justify-between h-14 gap-2">
-          <NavLink to="/" className="flex items-center gap-2 group flex-shrink-0" end>
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, #6a9960 0%, #4d7a44 100%)' }}
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={() => setShowMenu(true)}
+              aria-label="Abrir menu"
+              aria-expanded={showMenu}
+              className="w-11 h-11 rounded-xl flex items-center justify-center transition-all active:scale-95 hover:shadow-sm flex-shrink-0"
+              style={{ background: 'var(--surface-elevated)', border: '1px solid rgba(196,184,166,0.25)' }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M9 22V12h6v10" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" style={{ color: 'var(--bark-700)' }}>
+                <path d="M4 6h16" />
+                <path d="M4 12h16" />
+                <path d="M4 18h16" />
               </svg>
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="font-display text-lg leading-none" style={{ color: 'var(--bark-700)' }}>
+            </button>
+            <NavLink to="/" className="flex items-center gap-2 group min-w-0" end>
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105 flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #6a9960 0%, #4d7a44 100%)' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M9 22V12h6v10" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h1 className="font-display text-base sm:text-lg leading-none truncate" style={{ color: 'var(--bark-700)' }}>
                 {house?.name || 'Casa Limpia'}
               </h1>
-            </div>
-          </NavLink>
+            </NavLink>
+          </div>
 
-          <div className="flex items-center gap-2 min-w-0">
-            <nav className="nav-scroll flex items-center gap-0.5 p-1 rounded-xl overflow-x-auto" style={{ background: 'rgba(196,184,166,0.15)', WebkitOverflowScrolling: 'touch' }}>
-              {navItems.map(item => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-medium font-body transition-all duration-200 whitespace-nowrap ${
-                      isActive ? 'shadow-sm' : 'hover:opacity-80'
-                    }`
-                  }
-                  style={({ isActive }) => isActive
-                    ? { background: 'var(--surface-elevated)', color: item.activeColor, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
-                    : { color: 'var(--bark-300)' }
-                  }
-                  end={item.end}
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* User avatar with dropdown */}
             <div className="relative flex-shrink-0" ref={dropdownRef}>
               <button
@@ -182,6 +192,81 @@ export default function Layout() {
           </div>
         </div>
       </header>
+
+      {/* Hamburger menu drawer */}
+      {showMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-40 modal-backdrop fade-in"
+            onClick={() => setShowMenu(false)}
+            aria-hidden="true"
+          />
+          <aside
+            role="dialog"
+            aria-label="Menu de navegacion"
+            className="fixed top-0 left-0 bottom-0 z-50 w-[82vw] max-w-xs flex flex-col drawer-slide-in"
+            style={{ background: 'var(--surface-card)', borderRight: '1px solid rgba(196,184,166,0.25)', boxShadow: '4px 0 24px rgba(0,0,0,0.08)' }}
+          >
+            <div className="flex items-center justify-between px-5 h-14 flex-shrink-0" style={{ borderBottom: '1px solid rgba(196,184,166,0.2)' }}>
+              <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #6a9960 0%, #4d7a44 100%)' }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M9 22V12h6v10" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <h2 className="font-display text-base leading-none truncate" style={{ color: 'var(--bark-700)' }}>
+                  {house?.name || 'Casa Limpia'}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMenu(false)}
+                aria-label="Cerrar menu"
+                className="w-9 h-9 rounded-lg flex items-center justify-center transition-all active:scale-95 hover:opacity-70 flex-shrink-0"
+                style={{ color: 'var(--bark-500)' }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M6 6l12 12" />
+                  <path d="M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+            <nav className="flex-1 overflow-y-auto py-2 px-2">
+              {navItems.map(item => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  onClick={() => setShowMenu(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-3 rounded-xl font-body text-[15px] font-medium transition-all min-h-[44px] ${
+                      isActive ? 'shadow-sm' : 'hover:opacity-80'
+                    }`
+                  }
+                  style={({ isActive }) => isActive
+                    ? { background: 'var(--surface-elevated)', color: item.activeColor, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }
+                    : { color: 'var(--bark-700)' }
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span
+                        className="w-1 h-6 rounded-full transition-all"
+                        style={{ background: isActive ? item.activeColor : 'transparent' }}
+                      />
+                      <span>{item.label}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </nav>
+          </aside>
+        </>
+      )}
 
       {/* Page content */}
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-6 relative">
