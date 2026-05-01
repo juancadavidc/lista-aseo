@@ -8,6 +8,13 @@
 
 ## [Fase 0] — MVP Fundacional
 
+### 2026-05-01 — Navegación con menú hamburguesa
+- **Reemplazo de la nav scrollable por drawer lateral** — el header ya no muestra una barra horizontal con scroll para acceder a los módulos (Tareas, Stats, Productos, Plantas, Compras, Admin, Casa). Ahora un botón hamburguesa abre un drawer desde la izquierda con todos los módulos como items grandes.
+- **Mejora UX mobile** — tap targets ≥ 44px, indicador visual del módulo activo (barra lateral con `activeColor` de cada módulo), backdrop con blur, cierre con tap fuera / Escape / selección de item, `body` con `overflow:hidden` mientras el drawer está abierto.
+- **Espacio recuperado en el header** — al quitar la nav scrollable, el nombre de la casa vuelve a ser visible en el header junto al logo.
+- **Animación** — `drawer-slide-in` (translateX desde -100%, easing `cubic-bezier(0.16, 1, 0.3, 1)`).
+- Archivos: `frontend/src/components/Layout.jsx`, `frontend/src/index.css` (limpieza de `.nav-scroll` y nueva keyframe `drawerSlideIn`).
+
 ### 2026-05-01 — Hardening de PATCH endpoints + refinamiento del gate sql-safety (#22)
 - **Whitelist de columnas en PATCH** — los 4 endpoints `PATCH /api/tasks/:id`, `PATCH /api/products/:id`, `PATCH /api/shopping-categories/:id` y `PATCH /api/shopping-items/:id` validan los keys del body contra una lista cerrada por tabla. Keys desconocidas devuelven `400 { error: 'Campos no permitidos: …' }` en lugar de inyectarse al SQL.
 - **Helper `server/lib/patch-update.js`** — `buildPatchUpdate(table, fields, allowedColumns)` centraliza la construcción del UPDATE parcial (whitelist de tabla + whitelist de columnas + valores parametrizados). El SET clause se compone con `+` (no template literal), cumpliendo el gate `sql-safety` sin escapes.
