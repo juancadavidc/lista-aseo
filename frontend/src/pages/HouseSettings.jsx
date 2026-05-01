@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { authClient } from '../lib/auth'
 import { getActiveHouse, setActiveHouse, clearActiveHouse, AVATARS, COLORS } from '../lib/house'
-import { fetchHouseMembers, fetchHouseProfile, updateHouseProfile, fetchVapidKey, subscribePush, unsubscribePush, fetchPushStatus, deleteHouse } from '../lib/api'
+import { fetchHouseMembers, fetchHouseProfile, updateHouseProfile, fetchVapidKey, subscribePush, unsubscribePush, fetchPushStatus, deleteHouse, fetchInvitations, deleteInvitation, renewInvitation } from '../lib/api'
 
 export default function HouseSettings() {
   const navigate = useNavigate()
@@ -26,6 +26,9 @@ export default function HouseSettings() {
   const [pushLoading, setPushLoading] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deletingHouse, setDeletingHouse] = useState(false)
+  const [invitations, setInvitations] = useState([])
+  const [confirmingDeleteInvId, setConfirmingDeleteInvId] = useState(null)
+  const [actingInvId, setActingInvId] = useState(null)
   const { data: session } = authClient.useSession()
 
   const showToast = (msg, type = 'success') => {
@@ -42,12 +45,74 @@ export default function HouseSettings() {
       setMembers(membersData)
       setMyProfile(profileData)
       const me = membersData.find(m => m.userId === session?.user?.id)
-      if (me) setMyRole(me.role)
+      if (me) {
+        setMyRole(me.role)
+        if (me.role === 'owner' || me.role === 'admin') {
+          loadInvitations()
+        }
+      }
     } catch {
       showToast('Error al cargar datos', 'error')
     } finally {
       setLoading(false)
     }
+  }
+
+  async function loadInvitations() {
+    try {
+      const data = await fetchInvitations()
+      setInvitations(data)
+    } catch {
+      // Silently ignore - non-admins won't have access
+    }
+  }
+
+  async function handleRenewInvitation(id) {
+    setActingInvId(id)
+    try {
+      await renewInvitation(id)
+      showToast('Invitacion renovada 7 dias mas')
+      loadInvitations()
+    } catch (err) {
+      showToast(err.message || 'Error al renovar invitacion', 'error')
+    } finally {
+      setActingInvId(null)
+    }
+  }
+
+  async function handleDeleteInvitation(id) {
+    if (confirmingDeleteInvId !== id) {
+      setConfirmingDeleteInvId(id)
+      setTimeout(() => setConfirmingDeleteInvId(null), 3000)
+      return
+    }
+    setActingInvId(id)
+    try {
+      await deleteInvitation(id)
+      showToast('Invitacion eliminada', 'warning')
+      loadInvitations()
+    } catch (err) {
+      showToast(err.message || 'Error al eliminar invitacion', 'error')
+    } finally {
+      setActingInvId(null)
+      setConfirmingDeleteInvId(null)
+    }
+  }
+
+  function formatExpiry(expiresAt) {
+    if (!expiresAt) return ''
+    const exp = new Date(expiresAt)
+    const now = new Date()
+    const diffMs = exp - now
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    if (diffMs < 0) return 'Expirada'
+    if (diffDays === 0) {
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+      if (diffHours <= 0) return 'Expira pronto'
+      return `Expira en ${diffHours}h`
+    }
+    if (diffDays === 1) return 'Expira manana'
+    return `Expira en ${diffDays} dias`
   }
 
   useEffect(() => {
@@ -114,6 +179,7 @@ export default function HouseSettings() {
       } else {
         showToast('Invitacion enviada')
         setInviteEmail('')
+        loadInvitations()
       }
     } catch (err) {
       showToast(err.message || 'Error al invitar', 'error')
@@ -445,6 +511,89 @@ export default function HouseSettings() {
               {inviting ? 'Invitando...' : 'Enviar invitacion'}
             </button>
           </form>
+        </div>
+      )}
+
+      {/* Pending invitations */}
+      {isOwnerOrAdmin && invitations.length > 0 && (
+        <div className="mb-6">
+          <h3 className="font-display text-lg mb-3" style={{ color: 'var(--bark-700)' }}>
+            Invitaciones pendientes ({invitations.length})
+          </h3>
+          <div className="flex flex-col gap-2">
+            {invitations.map(inv => {
+              const expired = inv.expiresAt && new Date(inv.expiresAt) < new Date()
+              const acting = actingInvId === inv.id
+              const confirmingDelete = confirmingDeleteInvId === inv.id
+              return (
+                <div
+                  key={inv.id}
+                  className="flex items-center gap-3 p-3 rounded-xl"
+                  style={{ background: 'var(--surface-card)', border: '1px solid rgba(196,184,166,0.25)' }}
+                >
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'rgba(196,184,166,0.15)', color: 'var(--bark-400)' }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                      <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-body font-semibold text-[13px] truncate" style={{ color: 'var(--bark-700)' }}>
+                      {inv.email}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span
+                        className="px-1.5 py-0.5 rounded text-[10px] font-body font-semibold"
+                        style={{ ...roleColor(inv.role) }}
+                      >
+                        {roleLabel(inv.role)}
+                      </span>
+                      <span
+                        className="font-body text-[11px]"
+                        style={{ color: expired ? 'var(--clay-500)' : 'var(--bark-300)' }}
+                      >
+                        {formatExpiry(inv.expiresAt)}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRenewInvitation(inv.id)}
+                    disabled={acting}
+                    title="Renovar 7 dias"
+                    className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center transition-all active:scale-90 disabled:opacity-50"
+                    style={{ color: 'var(--moss-500)', background: 'rgba(106,153,96,0.08)' }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="23 4 23 10 17 10"/>
+                      <polyline points="1 20 1 14 7 14"/>
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteInvitation(inv.id)}
+                    disabled={acting}
+                    title="Eliminar invitacion"
+                    className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center transition-all active:scale-90 disabled:opacity-50"
+                    style={{
+                      color: confirmingDelete ? 'white' : 'var(--clay-500)',
+                      background: confirmingDelete ? 'var(--clay-500)' : 'rgba(184,90,58,0.08)',
+                    }}
+                  >
+                    {confirmingDelete ? (
+                      <span className="font-body font-bold text-[10px]">?</span>
+                    ) : (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 

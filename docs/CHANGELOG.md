@@ -8,6 +8,14 @@
 
 ## [Fase 0] — MVP Fundacional
 
+### 2026-05-01 — Gestión de invitaciones pendientes
+- **Sección "Invitaciones pendientes" en Configuración de la casa** — owners y admins ven, debajo del formulario de invitar, la lista de invitaciones con estado `pending`: email, rol y tiempo restante hasta la expiración (formato relativo: "Expira en 3 dias", "Expira manana", "Expirada" en clay si ya venció).
+- **Renovar invitación** — botón con icono de refresco extiende `expiresAt` por 7 días desde ahora (`POST /api/invitations/:id/renew`). Útil cuando la invitación expiró y quieres darle nueva vida sin reinvitar desde cero.
+- **Eliminar invitación** — botón X con doble-tap de confirmación (3s timeout, mismo patrón que eliminar miembro y eliminar casa) revoca una invitación pendiente (`DELETE /api/invitations/:id`).
+- **Endpoints backend protegidos** — `GET/DELETE/POST /api/invitations*` con stack `requireAuth → requireHouse → requireRole('owner','admin')`. Toda query filtra por `req.house.id` (regla crítica #1 multi-tenant) y `status = 'pending'`. SQL parametrizado (regla crítica #2).
+- **Refresh automático** — al enviar una nueva invitación desde el formulario existente, la lista se recarga sin necesidad de recargar la página.
+- Archivos: `server/index.js` (3 endpoints nuevos sobre tabla better-auth `"invitation"`), `frontend/src/lib/api.js` (`fetchInvitations`, `renewInvitation`, `deleteInvitation`), `frontend/src/pages/HouseSettings.jsx` (nueva sección y handlers).
+
 ### 2026-05-01 — Navegación con menú hamburguesa
 - **Reemplazo de la nav scrollable por drawer lateral** — el header ya no muestra una barra horizontal con scroll para acceder a los módulos (Tareas, Stats, Productos, Plantas, Compras, Admin, Casa). Ahora un botón hamburguesa abre un drawer desde la izquierda con todos los módulos como items grandes.
 - **Mejora UX mobile** — tap targets ≥ 44px, indicador visual del módulo activo (barra lateral con `activeColor` de cada módulo), backdrop con blur, cierre con tap fuera / Escape / selección de item, `body` con `overflow:hidden` mientras el drawer está abierto.
