@@ -17,6 +17,13 @@ import {
   createRequireSuperAdmin,
   isAllowedImageExtension,
 } from './lib/middleware.js'
+import {
+  buildPatchUpdate,
+  TASK_UPDATABLE_COLUMNS,
+  PRODUCT_UPDATABLE_COLUMNS,
+  SHOPPING_CATEGORY_UPDATABLE_COLUMNS,
+  SHOPPING_ITEM_UPDATABLE_COLUMNS,
+} from './lib/patch-update.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOADS_DIR = path.join(__dirname, 'uploads')
@@ -479,17 +486,14 @@ app.post('/api/tasks', requireAuth, requireHouse, requireRole('owner', 'admin'),
 app.patch('/api/tasks/:id', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
   try {
     const { id } = req.params
-    const fields = req.body
-    const keys = Object.keys(fields).filter(k => k !== 'organization_id')
-    if (keys.length === 0) return res.status(400).json({ error: 'No fields to update' })
+    const fields = { ...req.body }
+    delete fields.organization_id
+    delete fields.id
 
-    const setClauses = keys.map((k, i) => `${k} = $${i + 3}`)
-    const values = keys.map(k => fields[k])
+    const built = buildPatchUpdate('tasks', fields, TASK_UPDATABLE_COLUMNS)
+    if (built.error) return res.status(400).json({ error: built.error })
 
-    const { rows } = await pool.query(
-      `UPDATE tasks SET ${setClauses.join(', ')} WHERE id = $1 AND organization_id = $2 RETURNING *`,
-      [id, req.house.id, ...values]
-    )
+    const { rows } = await pool.query(built.sql, [id, req.house.id, ...built.values])
     if (rows.length === 0) return res.status(404).json({ error: 'Task not found' })
     res.json(rows[0])
   } catch (err) {
@@ -645,23 +649,18 @@ app.patch('/api/products/:id', requireAuth, requireHouse, async (req, res) => {
     const { id } = req.params
     const fields = { ...req.body }
     delete fields.organization_id
+    delete fields.id
 
     // Cuando cambia is_out_of_stock, sincronizamos el timestamp de agotado
-    // sin que el cliente tenga que pasarlo explícitamente.
+    // sin que el cliente tenga que pasarlo explicitamente.
     if ('is_out_of_stock' in fields) {
       fields.last_out_of_stock_at = fields.is_out_of_stock ? new Date() : null
     }
 
-    const keys = Object.keys(fields)
-    if (keys.length === 0) return res.status(400).json({ error: 'No fields to update' })
+    const built = buildPatchUpdate('products', fields, PRODUCT_UPDATABLE_COLUMNS)
+    if (built.error) return res.status(400).json({ error: built.error })
 
-    const setClauses = keys.map((k, i) => `${k} = $${i + 3}`)
-    const values = keys.map(k => fields[k])
-
-    const { rows } = await pool.query(
-      `UPDATE products SET ${setClauses.join(', ')} WHERE id = $1 AND organization_id = $2 RETURNING *`,
-      [id, req.house.id, ...values]
-    )
+    const { rows } = await pool.query(built.sql, [id, req.house.id, ...built.values])
     if (rows.length === 0) return res.status(404).json({ error: 'Product not found' })
     res.json(rows[0])
   } catch (err) {
@@ -736,17 +735,14 @@ app.post('/api/shopping-categories', requireAuth, requireHouse, requireRole('own
 app.patch('/api/shopping-categories/:id', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
   try {
     const { id } = req.params
-    const fields = req.body
-    const keys = Object.keys(fields).filter(k => k !== 'organization_id' && k !== 'id')
-    if (keys.length === 0) return res.status(400).json({ error: 'No fields to update' })
+    const fields = { ...req.body }
+    delete fields.organization_id
+    delete fields.id
 
-    const setClauses = keys.map((k, i) => `${k} = $${i + 3}`)
-    const values = keys.map(k => fields[k])
+    const built = buildPatchUpdate('shopping_categories', fields, SHOPPING_CATEGORY_UPDATABLE_COLUMNS)
+    if (built.error) return res.status(400).json({ error: built.error })
 
-    const { rows } = await pool.query(
-      `UPDATE shopping_categories SET ${setClauses.join(', ')} WHERE id = $1 AND organization_id = $2 RETURNING *`,
-      [id, req.house.id, ...values]
-    )
+    const { rows } = await pool.query(built.sql, [id, req.house.id, ...built.values])
     if (rows.length === 0) return res.status(404).json({ error: 'Category not found' })
     res.json(rows[0])
   } catch (err) {
@@ -802,17 +798,14 @@ app.post('/api/shopping-items', requireAuth, requireHouse, async (req, res) => {
 app.patch('/api/shopping-items/:id', requireAuth, requireHouse, async (req, res) => {
   try {
     const { id } = req.params
-    const fields = req.body
-    const keys = Object.keys(fields).filter(k => k !== 'organization_id')
-    if (keys.length === 0) return res.status(400).json({ error: 'No fields to update' })
+    const fields = { ...req.body }
+    delete fields.organization_id
+    delete fields.id
 
-    const setClauses = keys.map((k, i) => `${k} = $${i + 3}`)
-    const values = keys.map(k => fields[k])
+    const built = buildPatchUpdate('shopping_items', fields, SHOPPING_ITEM_UPDATABLE_COLUMNS)
+    if (built.error) return res.status(400).json({ error: built.error })
 
-    const { rows } = await pool.query(
-      `UPDATE shopping_items SET ${setClauses.join(', ')} WHERE id = $1 AND organization_id = $2 RETURNING *`,
-      [id, req.house.id, ...values]
-    )
+    const { rows } = await pool.query(built.sql, [id, req.house.id, ...built.values])
     if (rows.length === 0) return res.status(404).json({ error: 'Item not found' })
     res.json(rows[0])
   } catch (err) {

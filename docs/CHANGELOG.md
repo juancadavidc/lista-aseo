@@ -8,6 +8,13 @@
 
 ## [Fase 0] — MVP Fundacional
 
+### 2026-05-01 — Hardening de PATCH endpoints + refinamiento del gate sql-safety (#22)
+- **Whitelist de columnas en PATCH** — los 4 endpoints `PATCH /api/tasks/:id`, `PATCH /api/products/:id`, `PATCH /api/shopping-categories/:id` y `PATCH /api/shopping-items/:id` validan los keys del body contra una lista cerrada por tabla. Keys desconocidas devuelven `400 { error: 'Campos no permitidos: …' }` en lugar de inyectarse al SQL.
+- **Helper `server/lib/patch-update.js`** — `buildPatchUpdate(table, fields, allowedColumns)` centraliza la construcción del UPDATE parcial (whitelist de tabla + whitelist de columnas + valores parametrizados). El SET clause se compone con `+` (no template literal), cumpliendo el gate `sql-safety` sin escapes.
+- **Gate `sql-safety` revisa solo el diff** — `scripts/ci/check-sql-safety.sh` ahora analiza únicamente las líneas agregadas por el PR (mismo patrón que `check-multi-tenant.sh`) y soporta el escape `// @allow-dynamic-sql` para SQL controlado por código (migraciones, seeds, `dateFilter` de stats). Elimina los falsos positivos sobre código preexistente seguro en `server/index.js`.
+- **Tests** — `lib/patch-update.test.js` cubre: build con whitelist, rechazo de keys desconocidas (incluyendo intento de inyección con SQL crudo en la key), tabla fuera del whitelist, body vacío y los 4 whitelists exportados.
+- **Cumple regla crítica #2 del `CLAUDE.md`** y desbloquea PRs futuros sobre `server/index.js`.
+
 ### 2026-04-30 — Gestión de plantas (extensión MVP)
 - **Nueva entidad `plants`** — tabla con `name`, `notes`, `watering_frequency_days` (default 7), `last_watered_at`, `organization_id`. Multi-tenant filtrado por `organization_id` en todas las queries (regla crítica #1).
 - **Historial de riego (`plant_watering_history`)** — registra cada riego con `watered_at`, `watered_by`, `user_id`. FK a `plants` con `ON DELETE CASCADE`.
