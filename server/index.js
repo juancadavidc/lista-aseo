@@ -204,6 +204,58 @@ app.put('/api/houses/profile', requireAuth, requireHouse, async (req, res) => {
   }
 })
 
+// GET /api/invitations - list pending invitations for active house (owner/admin only)
+app.get('/api/invitations', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT i.id, i.email, i.role, i.status, i."expiresAt", i."inviterId",
+             u.name as inviter_name, u.email as inviter_email
+      FROM "invitation" i
+      LEFT JOIN "user" u ON u.id = i."inviterId"
+      WHERE i."organizationId" = $1 AND i.status = 'pending'
+      ORDER BY i."expiresAt" DESC
+    `, [req.house.id])
+    res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// DELETE /api/invitations/:id - revoke a pending invitation (owner/admin only)
+app.delete('/api/invitations/:id', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const { rowCount } = await pool.query(
+      `DELETE FROM "invitation" WHERE id = $1 AND "organizationId" = $2 AND status = 'pending'`,
+      [req.params.id, req.house.id]
+    )
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Invitacion no encontrada' })
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/invitations/:id/renew - extend expiration by 7 days (owner/admin only)
+app.post('/api/invitations/:id/renew', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE "invitation"
+       SET "expiresAt" = NOW() + INTERVAL '7 days'
+       WHERE id = $1 AND "organizationId" = $2 AND status = 'pending'
+       RETURNING id, email, role, status, "expiresAt"`,
+      [req.params.id, req.house.id]
+    )
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Invitacion no encontrada' })
+    }
+    res.json(rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // DELETE /api/houses/:id - delete a house and all its data (owner only)
 app.delete('/api/houses/:id', requireAuth, async (req, res) => {
   const houseId = req.params.id

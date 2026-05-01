@@ -257,3 +257,17 @@ export async function seedHouse(template = 'small', tasks = null) {
 export async function deleteHouse(houseId) {
   return request(`/houses/${houseId}`, { method: 'DELETE' })
 }
+
+// --- Invitations ---
+
+export async function fetchInvitations() {
+  return request('/invitations')
+}
+
+export async function deleteInvitation(id) {
+  return request(`/invitations/${id}`, { method: 'DELETE' })
+}
+
+export async function renewInvitation(id) {
+  return request(`/invitations/${id}/renew`, { method: 'POST' })
+}
