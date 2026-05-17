@@ -8,6 +8,7 @@ import ShoppingList from '../ShoppingList'
 vi.mock('../../lib/api', () => ({
   fetchShoppingItems: vi.fn(),
   fetchShoppingCategories: vi.fn(),
+  fetchShoppingRecommendations: vi.fn(),
   createShoppingItem: vi.fn(),
   updateShoppingItem: vi.fn(),
   deleteShoppingItem: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock('../../lib/api', () => ({
 import {
   fetchShoppingItems,
   fetchShoppingCategories,
+  fetchShoppingRecommendations,
   createShoppingItem,
 } from '../../lib/api'
 
@@ -40,6 +42,7 @@ describe('ShoppingList — Smart Tags integration', () => {
     vi.clearAllMocks()
     fetchShoppingItems.mockResolvedValue([])
     fetchShoppingCategories.mockResolvedValue(MOCK_CATEGORIES)
+    fetchShoppingRecommendations.mockResolvedValue([])
     createShoppingItem.mockResolvedValue({ id: 'new-1' })
   })
 
@@ -153,6 +156,70 @@ describe('ShoppingList — Smart Tags integration', () => {
     await user.clear(input)
     await user.type(input, 'lechuga')
     expect(screen.getByText('Frutas y Verduras')).toBeInTheDocument()
+  })
+
+  it('muestra la seccion de sugerencias cuando hay recomendaciones', async () => {
+    fetchShoppingRecommendations.mockResolvedValue([
+      {
+        name: 'Papel higienico',
+        category_id: 'cat-1',
+        category_name: 'Limpieza',
+        category_emoji: '🧻',
+        times_bought: 3,
+        avg_interval_days: 30,
+        last_purchased_at: new Date().toISOString(),
+        predicted_next: new Date().toISOString(),
+        days_until_next: 0,
+      },
+    ])
+    renderShoppingList()
+
+    await waitFor(() => {
+      expect(screen.getByText(/Sugeridos para volver a comprar/i)).toBeInTheDocument()
+    })
+    expect(screen.getByText('Papel higienico')).toBeInTheDocument()
+    expect(screen.getByText(/Toca recomprar/i)).toBeInTheDocument()
+  })
+
+  it('agregar una recomendacion llama a createShoppingItem con su category_id', async () => {
+    const user = userEvent.setup()
+    fetchShoppingRecommendations.mockResolvedValue([
+      {
+        name: 'Detergente',
+        category_id: 'cat-1',
+        category_name: 'Limpieza',
+        category_emoji: '🧹',
+        times_bought: 4,
+        avg_interval_days: 21,
+        last_purchased_at: new Date().toISOString(),
+        predicted_next: new Date().toISOString(),
+        days_until_next: -2,
+      },
+    ])
+    renderShoppingList()
+
+    await waitFor(() => {
+      expect(screen.getByText('Detergente')).toBeInTheDocument()
+    })
+
+    const addBtn = screen.getByRole('button', { name: '+ Agregar' })
+    await user.click(addBtn)
+
+    await waitFor(() => {
+      expect(createShoppingItem).toHaveBeenCalledWith({
+        name: 'Detergente',
+        note: null,
+        category_id: 'cat-1',
+      })
+    })
+  })
+
+  it('no renderiza la seccion de sugerencias cuando no hay recomendaciones', async () => {
+    renderShoppingList()
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Agregar producto...')).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/Sugeridos para volver a comprar/i)).not.toBeInTheDocument()
   })
 
   it('enviar el formulario con sugerencia aceptada envía el category_id correcto', async () => {

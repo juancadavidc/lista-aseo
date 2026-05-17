@@ -6,6 +6,23 @@
 
 ---
 
+## [Fase 2] — Experiencias Agénticas
+
+### 2026-05-17 — Archivado de compras + recomendador por periodicidad
+- **Compras dejan historial en vez de borrarse** — `shopping_items` gana columnas `purchased_at` (se setea automaticamente al marcar `is_purchased=true`, se limpia al desmarcar) y `archived_at` (marca el item como archivado, lo saca de la lista activa). Migracion automatica en `migrate()` + `init.sql` para installs nuevos.
+- **Auto-archivado lazy a los 7 dias** — `GET /api/shopping-items` corre un `UPDATE` previo que archiva los comprados con `purchased_at` mayor a 7 dias. Sin cron, sin worker: aprovecha el trafico normal de la lista. La lista activa filtra por `archived_at IS NULL`.
+- **`DELETE /shopping-items/clear-purchased` ahora archiva** — antes borraba (perdiamos historial). Ahora hace `UPDATE … SET archived_at = NOW()`, y rellena `purchased_at` con `COALESCE` para items legacy sin timestamp. El boton del frontend se renombro a "Archivar".
+- **`GET /api/shopping-items/recommendations`** — analiza items archivados agrupados por nombre normalizado (sin acentos, lower). Para cada grupo con >= 2 compras calcula la **mediana** de los intervalos historicos, predice la proxima compra y la incluye si esta dentro de la ventana de tolerancia (3 dias antes o vencida). Excluye items que ya estan en la lista activa. Mediana > media para resistir outliers (compras compulsivas no rompen la frecuencia base).
+- **`GET /api/shopping-items/history`** — items archivados, ordenados por `archived_at DESC`, limite 1-500 (default 100).
+- **Seccion "Sugeridos para volver a comprar" en `/shopping`** — colapsable, muestra emoji de categoria, status (`Vencido hace N dias` / `Toca recomprar` / `En N dias`), intervalo promedio y veces compradas. Cada sugerencia tiene boton `+ Agregar` (hereda category_id del historico) y `X` para descartar en la sesion.
+- **Nueva pagina `/shopping/history`** — historial agrupado por mes, con buscador y filtro por categoria. Acceso desde un nuevo boton (icono de reloj con flecha circular) en el header de la lista.
+- **Hardening de seguridad** — `purchased_at` y `archived_at` agregados al whitelist `SHOPPING_ITEM_UPDATABLE_COLUMNS`, pero el handler `PATCH /shopping-items/:id` sobreescribe lo que mande el cliente cuando viene `is_purchased`, para garantizar consistencia. Multi-tenant respetado: todas las queries filtran por `req.house.id` (regla critica #1) y usan parametros (#2).
+- **Tests** — `server/lib/shopping-recommendations.test.js` cubre normalizacion, exclusion de items activos, ordenamiento por urgencia, mediana vs media, requisito de >= 2 compras y tolerancia de ventana. `frontend/src/pages/__tests__/ShoppingList.test.jsx` extiende mocks y agrega 3 casos: render de la seccion, click en "Agregar" sobre una recomendacion y ausencia de la seccion cuando no hay recomendaciones.
+- **Cierra una sub-meta de Fase 2** — junto con Smart Tags y el recomendador de tareas en onboarding, completa la trilogia de experiencias agenticas sobre compras/tareas. Habilita futuras notificaciones push tipo "se acerca tu recompra de X" sin trabajo adicional de modelado.
+- Archivos: `db/init.sql`, `server/index.js`, `server/lib/patch-update.js`, `server/lib/shopping-recommendations.js` (nuevo), `server/lib/shopping-recommendations.test.js` (nuevo), `frontend/src/lib/api.js`, `frontend/src/pages/ShoppingList.jsx`, `frontend/src/pages/ShoppingHistory.jsx` (nuevo), `frontend/src/main.jsx`.
+
+---
+
 ## [Fase 0] — MVP Fundacional
 
 ### 2026-05-01 — Gestión de invitaciones pendientes

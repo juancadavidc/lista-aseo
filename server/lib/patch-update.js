@@ -41,6 +41,8 @@ export const SHOPPING_ITEM_UPDATABLE_COLUMNS = new Set([
   'note',
   'is_purchased',
   'category_id',
+  'purchased_at',
+  'archived_at',
 ])
 
 /**

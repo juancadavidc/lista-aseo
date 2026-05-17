@@ -8,6 +8,7 @@ import Products from './pages/Products'
 import Plants from './pages/Plants'
 import ShoppingList from './pages/ShoppingList'
 import ShoppingAdmin from './pages/ShoppingAdmin'
+import ShoppingHistory from './pages/ShoppingHistory'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import HouseSelect from './pages/HouseSelect'
@@ -60,6 +61,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/plants" element={<Plants />} />
           <Route path="/shopping" element={<ShoppingList />} />
           <Route path="/shopping/admin" element={<ShoppingAdmin />} />
+          <Route path="/shopping/history" element={<ShoppingHistory />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/house-settings" element={<HouseSettings />} />

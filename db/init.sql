@@ -62,12 +62,16 @@ CREATE TABLE IF NOT EXISTS shopping_items (
     is_purchased BOOLEAN NOT NULL DEFAULT false,
     category_id UUID REFERENCES shopping_categories(id) ON DELETE SET NULL,
     organization_id TEXT,
+    purchased_at TIMESTAMPTZ,
+    archived_at  TIMESTAMPTZ,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_shopping_items_purchased ON shopping_items(is_purchased);
 CREATE INDEX IF NOT EXISTS idx_shopping_items_org ON shopping_items(organization_id);
 CREATE INDEX IF NOT EXISTS idx_shopping_items_category ON shopping_items(category_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_items_archived ON shopping_items(archived_at);
+CREATE INDEX IF NOT EXISTS idx_shopping_items_purchased_at ON shopping_items(purchased_at DESC);
 
 CREATE TABLE IF NOT EXISTS house_member_profiles (
     id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,

@@ -174,6 +174,14 @@ export async function clearPurchasedItems() {
   return request('/shopping-items/clear-purchased', { method: 'DELETE' })
 }
 
+export async function fetchShoppingHistory(limit = 100) {
+  return request(`/shopping-items/history?limit=${limit}`)
+}
+
+export async function fetchShoppingRecommendations() {
+  return request('/shopping-items/recommendations')
+}
+
 // --- Plants ---
 
 export async function fetchPlants() {

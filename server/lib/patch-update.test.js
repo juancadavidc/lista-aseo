@@ -129,4 +129,9 @@ describe('whitelists exportados', () => {
     expect(SHOPPING_ITEM_UPDATABLE_COLUMNS.has('organization_id')).toBe(false)
     expect(SHOPPING_ITEM_UPDATABLE_COLUMNS.has('id')).toBe(false)
   })
+
+  it('SHOPPING_ITEM_UPDATABLE_COLUMNS incluye purchased_at y archived_at para archivado', () => {
+    expect(SHOPPING_ITEM_UPDATABLE_COLUMNS.has('purchased_at')).toBe(true)
+    expect(SHOPPING_ITEM_UPDATABLE_COLUMNS.has('archived_at')).toBe(true)
+  })
 })
