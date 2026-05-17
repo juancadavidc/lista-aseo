@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   fetchShoppingItems, createShoppingItem, updateShoppingItem,
   deleteShoppingItem, clearPurchasedItems, fetchShoppingCategories,
+  fetchShoppingRecommendations,
 } from '../lib/api'
 import { suggestCategory } from '../lib/smartTags'
 import SearchInput from '../components/SearchInput'
@@ -10,6 +11,7 @@ import SearchInput from '../components/SearchInput'
 export default function ShoppingList() {
   const [items, setItems] = useState([])
   const [categories, setCategories] = useState([])
+  const [recommendations, setRecommendations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [newName, setNewName] = useState('')
@@ -20,6 +22,9 @@ export default function ShoppingList() {
   const [toast, setToast] = useState(null)
   const [dismissedFor, setDismissedFor] = useState('')
   const [query, setQuery] = useState('')
+  const [dismissedRecs, setDismissedRecs] = useState(() => new Set())
+  const [recsCollapsed, setRecsCollapsed] = useState(false)
+  const [addingRecName, setAddingRecName] = useState(null)
 
   const suggestion = useMemo(() => {
     if (!newName.trim() || newCategoryId) return null
@@ -35,12 +40,14 @@ export default function ShoppingList() {
   const loadData = useCallback(async () => {
     try {
       setError(null)
-      const [itemsData, catsData] = await Promise.all([
+      const [itemsData, catsData, recsData] = await Promise.all([
         fetchShoppingItems(),
         fetchShoppingCategories(),
+        fetchShoppingRecommendations().catch(() => []),
       ])
       setItems(itemsData)
       setCategories(catsData)
+      setRecommendations(recsData)
     } catch {
       setError('No se pudo cargar la lista de compras.')
     } finally {
@@ -97,12 +104,41 @@ export default function ShoppingList() {
   async function handleClearPurchased() {
     try {
       await clearPurchasedItems()
-      showToast('Lista limpiada')
+      showToast('Comprados archivados')
       loadData()
     } catch {
       showToast('Error al limpiar', 'error')
     }
   }
+
+  async function handleAddRecommendation(rec) {
+    try {
+      setAddingRecName(rec.name)
+      await createShoppingItem({
+        name: rec.name,
+        note: null,
+        category_id: rec.category_id || null,
+      })
+      showToast(`${rec.name} agregado`)
+      loadData()
+    } catch {
+      showToast('Error al agregar', 'error')
+    } finally {
+      setAddingRecName(null)
+    }
+  }
+
+  function handleDismissRecommendation(rec) {
+    setDismissedRecs(prev => {
+      const next = new Set(prev)
+      next.add(rec.name.toLowerCase())
+      return next
+    })
+  }
+
+  const visibleRecommendations = recommendations.filter(
+    r => !dismissedRecs.has(r.name.toLowerCase())
+  )
 
   const matchesQuery = useCallback((item) => {
     const q = query.trim().toLowerCase()
@@ -162,6 +198,18 @@ export default function ShoppingList() {
         </div>
         <div className="flex items-center gap-2">
           <Link
+            to="/shopping/history"
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
+            style={{ background: 'rgba(196,184,166,0.15)', color: 'var(--bark-400)' }}
+            title="Historial de compras"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+              <path d="M12 7v5l3 2"/>
+            </svg>
+          </Link>
+          <Link
             to="/shopping/admin"
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95"
             style={{ background: 'rgba(196,184,166,0.15)', color: 'var(--bark-400)' }}
@@ -182,6 +230,18 @@ export default function ShoppingList() {
         <div className="rounded-xl p-4 mb-4 font-body text-[13px]" style={{ background: 'rgba(184,90,58,0.06)', color: 'var(--clay-500)', border: '1px solid rgba(184,90,58,0.15)' }}>
           {error}
         </div>
+      )}
+
+      {/* Recommendations from purchase history */}
+      {visibleRecommendations.length > 0 && (
+        <RecommendationsSection
+          recommendations={visibleRecommendations}
+          collapsed={recsCollapsed}
+          onToggleCollapsed={() => setRecsCollapsed(c => !c)}
+          onAdd={handleAddRecommendation}
+          onDismiss={handleDismissRecommendation}
+          addingRecName={addingRecName}
+        />
       )}
 
       {/* Quick add form */}
@@ -376,8 +436,9 @@ export default function ShoppingList() {
                   onClick={handleClearPurchased}
                   className="font-body text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all active:scale-95"
                   style={{ color: 'var(--clay-500)', background: 'rgba(184,90,58,0.06)' }}
+                  title="Archivar comprados (van al historial)"
                 >
-                  Limpiar lista
+                  Archivar
                 </button>
               </div>
               <div className="flex flex-col gap-2 stagger">
@@ -525,4 +586,109 @@ function formatTimeAgo(dateStr) {
   const days = Math.floor(hours / 24)
   if (days === 1) return 'ayer'
   return `hace ${days}d`
+}
+
+function recommendationStatusLabel(rec) {
+  const d = rec.days_until_next
+  if (d < -1) return `Vencido hace ${Math.abs(d)} dias`
+  if (d <= 0) return 'Toca recomprar'
+  if (d === 1) return 'En 1 dia'
+  return `En ${d} dias`
+}
+
+function RecommendationsSection({
+  recommendations, collapsed, onToggleCollapsed, onAdd, onDismiss, addingRecName,
+}) {
+  return (
+    <div
+      className="mb-5 rounded-2xl overflow-hidden fade-in"
+      style={{
+        background: 'linear-gradient(135deg, rgba(106,153,96,0.06), rgba(196,184,166,0.04))',
+        border: '1px solid rgba(106,153,96,0.18)',
+      }}
+    >
+      <button
+        type="button"
+        onClick={onToggleCollapsed}
+        className="w-full flex items-center justify-between gap-2 px-4 py-3 transition-colors active:scale-[0.995]"
+      >
+        <div className="flex items-center gap-2">
+          <div
+            className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: 'rgba(106,153,96,0.18)' }}
+          >
+            <span style={{ fontSize: 14 }}>✨</span>
+          </div>
+          <div className="text-left">
+            <p className="font-body text-[12px] font-bold uppercase tracking-wider" style={{ color: 'var(--moss-600)' }}>
+              Sugeridos para volver a comprar
+            </p>
+            <p className="font-body text-[11px]" style={{ color: 'var(--bark-300)' }}>
+              {recommendations.length} {recommendations.length === 1 ? 'sugerencia' : 'sugerencias'} segun tu historial
+            </p>
+          </div>
+        </div>
+        <svg
+          width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="var(--bark-400)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+        >
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </button>
+
+      {!collapsed && (
+        <div className="px-3 pb-3 flex flex-col gap-1.5">
+          {recommendations.map((rec, i) => {
+            const isAdding = addingRecName === rec.name
+            return (
+              <div
+                key={`${rec.name}-${i}`}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                style={{
+                  background: 'var(--surface-card)',
+                  border: '1px solid rgba(196,184,166,0.25)',
+                }}
+              >
+                {rec.category_emoji ? (
+                  <span style={{ fontSize: 16 }}>{rec.category_emoji}</span>
+                ) : (
+                  <span style={{ fontSize: 16 }}>🛒</span>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-body font-semibold text-[13px] leading-tight truncate" style={{ color: 'var(--bark-700)' }}>
+                    {rec.name}
+                  </p>
+                  <p className="font-body text-[11px]" style={{ color: 'var(--bark-300)' }}>
+                    {recommendationStatusLabel(rec)} · cada ~{rec.avg_interval_days}d · {rec.times_bought}x
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isAdding}
+                  onClick={() => onAdd(rec)}
+                  className="px-2.5 py-1.5 rounded-lg font-body font-semibold text-[11px] text-white transition-all active:scale-95 disabled:opacity-50"
+                  style={{ background: 'var(--moss-500)' }}
+                  title="Agregar a la lista"
+                >
+                  {isAdding ? '...' : '+ Agregar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDismiss(rec)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-all active:scale-90"
+                  style={{ color: 'var(--bark-300)' }}
+                  title="Descartar"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }

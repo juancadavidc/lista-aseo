@@ -24,6 +24,9 @@ import {
   SHOPPING_CATEGORY_UPDATABLE_COLUMNS,
   SHOPPING_ITEM_UPDATABLE_COLUMNS,
 } from './lib/patch-update.js'
+import { buildRecommendations } from './lib/shopping-recommendations.js'
+
+const SHOPPING_AUTO_ARCHIVE_DAYS = 7
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOADS_DIR = path.join(__dirname, 'uploads')
@@ -818,11 +821,23 @@ app.delete('/api/shopping-categories/:id', requireAuth, requireHouse, requireRol
 // GET /api/shopping-items
 app.get('/api/shopping-items', requireAuth, requireHouse, async (req, res) => {
   try {
+    // Auto-archivar comprados con mas de SHOPPING_AUTO_ARCHIVE_DAYS dias (lazy).
+    await pool.query(
+      `UPDATE shopping_items
+       SET archived_at = NOW()
+       WHERE organization_id = $1
+         AND is_purchased = true
+         AND archived_at IS NULL
+         AND purchased_at IS NOT NULL
+         AND purchased_at < NOW() - ($2 || ' days')::INTERVAL`,
+      [req.house.id, String(SHOPPING_AUTO_ARCHIVE_DAYS)]
+    )
+
     const { rows } = await pool.query(`
       SELECT si.*, sc.name as category_name, sc.emoji as category_emoji
       FROM shopping_items si
       LEFT JOIN shopping_categories sc ON si.category_id = sc.id
-      WHERE si.organization_id = $1
+      WHERE si.organization_id = $1 AND si.archived_at IS NULL
       ORDER BY si.is_purchased, sc.sort_order NULLS LAST, si.created_at DESC
     `, [req.house.id])
     res.json(rows)
@@ -854,6 +869,18 @@ app.patch('/api/shopping-items/:id', requireAuth, requireHouse, async (req, res)
     delete fields.organization_id
     delete fields.id
 
+    // Auto-sync purchased_at / archived_at cuando cambia is_purchased.
+    // El servidor manda; ignora cualquier purchased_at/archived_at del cliente
+    // en este caso para evitar inconsistencias.
+    if (Object.prototype.hasOwnProperty.call(fields, 'is_purchased')) {
+      if (fields.is_purchased) {
+        fields.purchased_at = new Date()
+      } else {
+        fields.purchased_at = null
+        fields.archived_at = null
+      }
+    }
+
     const built = buildPatchUpdate('shopping_items', fields, SHOPPING_ITEM_UPDATABLE_COLUMNS)
     if (built.error) return res.status(400).json({ error: built.error })
 
@@ -866,10 +893,67 @@ app.patch('/api/shopping-items/:id', requireAuth, requireHouse, async (req, res)
 })
 
 // DELETE /api/shopping-items/clear-purchased
+// Archiva en lugar de borrar: conserva historial para recomendaciones (Fase 2).
 app.delete('/api/shopping-items/clear-purchased', requireAuth, requireHouse, async (req, res) => {
   try {
-    await pool.query('DELETE FROM shopping_items WHERE is_purchased = true AND organization_id = $1', [req.house.id])
+    // Items sin purchased_at (legacy) reciben uno antes de archivar.
+    await pool.query(
+      `UPDATE shopping_items
+       SET purchased_at = COALESCE(purchased_at, NOW()),
+           archived_at = NOW()
+       WHERE is_purchased = true
+         AND archived_at IS NULL
+         AND organization_id = $1`,
+      [req.house.id]
+    )
     res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /api/shopping-items/history
+// Items archivados, mas recientes primero. Util para vista "Historial".
+app.get('/api/shopping-items/history', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 100, 1), 500)
+    const { rows } = await pool.query(`
+      SELECT si.*, sc.name as category_name, sc.emoji as category_emoji
+      FROM shopping_items si
+      LEFT JOIN shopping_categories sc ON si.category_id = sc.id
+      WHERE si.organization_id = $1 AND si.archived_at IS NOT NULL
+      ORDER BY si.archived_at DESC, si.purchased_at DESC NULLS LAST
+      LIMIT $2
+    `, [req.house.id, limit])
+    res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /api/shopping-items/recommendations
+// Sugiere proximas compras analizando periodicidad del historial archivado.
+app.get('/api/shopping-items/recommendations', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const { rows: archived } = await pool.query(`
+      SELECT si.id, si.name, si.category_id, si.purchased_at,
+             sc.name as category_name, sc.emoji as category_emoji
+      FROM shopping_items si
+      LEFT JOIN shopping_categories sc ON si.category_id = sc.id
+      WHERE si.organization_id = $1
+        AND si.archived_at IS NOT NULL
+        AND si.purchased_at IS NOT NULL
+      ORDER BY si.purchased_at DESC
+    `, [req.house.id])
+
+    const { rows: active } = await pool.query(
+      `SELECT name FROM shopping_items
+       WHERE organization_id = $1 AND archived_at IS NULL`,
+      [req.house.id]
+    )
+
+    const recommendations = buildRecommendations(archived, active)
+    res.json(recommendations)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -1281,6 +1365,12 @@ async function migrate() {
     // Shopping categories support
     await addColumnIfMissing('shopping_items', 'category_id', 'UUID REFERENCES shopping_categories(id) ON DELETE SET NULL')
     await pool.query('CREATE INDEX IF NOT EXISTS idx_shopping_items_category ON shopping_items(category_id)')
+
+    // Archivado de compras + historial para recomendaciones (Fase 2)
+    await addColumnIfMissing('shopping_items', 'purchased_at', 'TIMESTAMPTZ')
+    await addColumnIfMissing('shopping_items', 'archived_at', 'TIMESTAMPTZ')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_shopping_items_archived ON shopping_items(archived_at)')
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_shopping_items_purchased_at ON shopping_items(purchased_at DESC)')
 
     // House member profiles table
     await pool.query(`
