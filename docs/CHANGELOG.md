@@ -8,6 +8,13 @@
 
 ## [Fase 2] — Experiencias Agénticas
 
+### 2026-05-17 — Notificación push al marcar compras
+- **Nuevo trigger de push** — cuando un miembro marca un item de compras como comprado (`PATCH /api/shopping-items/:id` con `is_purchased: true`), se envía notificación push a todos los miembros suscritos de la casa. Payload: `{ title: 'Compra marcada', body: '{user} compró: {item}', tag: 'shopping-item-purchased', url: '/shopping' }`. Click abre la lista de compras.
+- **Solo dispara en transición `false → true`** — el handler hace un `SELECT is_purchased` previo y compara contra el estado nuevo. Evita ruido en no-ops (re-PATCH del mismo estado) y al desmarcar (`true → false`). Mantiene consistencia con el patrón de `tarea completada` (un evento = una notificación).
+- **Reutiliza `sendPushToHouse()`** — mismo helper que ya filtra suscripciones por `organization_id` (multi-tenant respetado, regla crítica #1) y maneja endpoints expirados con `Promise.allSettled`. Sin nuevo código de infraestructura.
+- **Cierra una sub-meta de Fase 1 sobre compras** — completa el trio de notificaciones de actividad doméstica (tareas, plantas, compras). Refuerza el bucle de coordinación: cualquier miembro se entera al instante de lo que se compró, sin abrir la app.
+- Archivos: `server/index.js` (handler `PATCH /api/shopping-items/:id`), `docs/PUSH_NOTIFICATIONS.md` (tabla de triggers actualizada).
+
 ### 2026-05-17 — Archivado de compras + recomendador por periodicidad
 - **Compras dejan historial en vez de borrarse** — `shopping_items` gana columnas `purchased_at` (se setea automaticamente al marcar `is_purchased=true`, se limpia al desmarcar) y `archived_at` (marca el item como archivado, lo saca de la lista activa). Migracion automatica en `migrate()` + `init.sql` para installs nuevos.
 - **Auto-archivado lazy a los 7 dias** — `GET /api/shopping-items` corre un `UPDATE` previo que archiva los comprados con `purchased_at` mayor a 7 dias. Sin cron, sin worker: aprovecha el trafico normal de la lista. La lista activa filtra por `archived_at IS NULL`.

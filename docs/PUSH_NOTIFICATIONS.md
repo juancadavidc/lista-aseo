@@ -85,6 +85,8 @@ VAPID_SUBJECT=mailto:.. # Email para header VAPID
 | Evento | Payload | Ubicación |
 |--------|---------|-----------|
 | Tarea completada | `{ title: "Tarea completada", body: "{user} completó: {task}", tag: "task-completed" }` | `server/index.js` POST `/api/completions` |
+| Planta regada | `{ title: "Planta regada", body: "{user} regó: {plant}", tag: "plant-watered" }` | `server/index.js` POST `/api/plants/:id/water` |
+| Compra marcada | `{ title: "Compra marcada", body: "{user} compró: {item}", tag: "shopping-item-purchased", url: "/shopping" }` | `server/index.js` PATCH `/api/shopping-items/:id` (solo al transitar `is_purchased` de `false` a `true`) |
 
 Para agregar nuevos triggers, reutilizar `sendPushToHouse(orgId, payload)` con un payload diferente.
 

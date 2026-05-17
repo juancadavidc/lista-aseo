@@ -881,11 +881,34 @@ app.patch('/api/shopping-items/:id', requireAuth, requireHouse, async (req, res)
       }
     }
 
+    // Snapshot del estado previo para detectar transicion false -> true
+    // (evita notificar en no-ops o cuando se desmarca como comprado).
+    let prevPurchased = null
+    if (Object.prototype.hasOwnProperty.call(fields, 'is_purchased') && fields.is_purchased) {
+      const { rows: prev } = await pool.query(
+        'SELECT is_purchased FROM shopping_items WHERE id = $1 AND organization_id = $2',
+        [id, req.house.id]
+      )
+      prevPurchased = prev[0]?.is_purchased ?? null
+    }
+
     const built = buildPatchUpdate('shopping_items', fields, SHOPPING_ITEM_UPDATABLE_COLUMNS)
     if (built.error) return res.status(400).json({ error: built.error })
 
     const { rows } = await pool.query(built.sql, [id, req.house.id, ...built.values])
     if (rows.length === 0) return res.status(404).json({ error: 'Item not found' })
+
+    // Notificar a la casa cuando un item pasa de pendiente a comprado.
+    if (prevPurchased === false && rows[0].is_purchased) {
+      const userName = req.user.name || 'Alguien'
+      sendPushToHouse(req.house.id, {
+        title: 'Compra marcada',
+        body: `${userName} compro: ${rows[0].name}`,
+        tag: 'shopping-item-purchased',
+        url: '/shopping',
+      })
+    }
+
     res.json(rows[0])
   } catch (err) {
     res.status(500).json({ error: err.message })
