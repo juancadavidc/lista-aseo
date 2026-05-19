@@ -471,7 +471,7 @@ export default function HouseSettings() {
                 onChange={e => setInviteEmail(e.target.value)}
                 placeholder="email@ejemplo.com"
                 required
-                className="w-full px-3.5 py-2.5 rounded-xl font-body text-[14px] outline-none transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl font-body text-[16px] outline-none transition-all"
                 style={{ background: 'var(--surface-elevated)', border: '1.5px solid rgba(196,184,166,0.3)', color: 'var(--bark-700)' }}
                 onFocus={e => e.target.style.borderColor = 'var(--moss-400)'}
                 onBlur={e => e.target.style.borderColor = 'rgba(196,184,166,0.3)'}

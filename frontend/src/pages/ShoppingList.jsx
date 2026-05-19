@@ -253,7 +253,7 @@ export default function ShoppingList() {
               value={newName}
               onChange={e => setNewName(e.target.value)}
               placeholder="Agregar producto..."
-              className="w-full px-3.5 py-2.5 rounded-xl font-body text-[14px] outline-none transition-all pr-10"
+              className="w-full px-3.5 py-2.5 rounded-xl font-body text-[16px] outline-none transition-all pr-10"
               style={{
                 background: 'var(--surface-card)',
                 border: '1.5px solid rgba(196,184,166,0.3)',
@@ -327,7 +327,7 @@ export default function ShoppingList() {
             <select
               value={newCategoryId}
               onChange={e => setNewCategoryId(e.target.value)}
-              className="px-3 py-2 rounded-xl font-body text-[13px] outline-none transition-all appearance-none cursor-pointer"
+              className="px-3 py-2 rounded-xl font-body text-[16px] outline-none transition-all appearance-none cursor-pointer"
               style={{
                 background: 'var(--surface-card)',
                 border: '1.5px solid rgba(196,184,166,0.3)',
@@ -348,7 +348,7 @@ export default function ShoppingList() {
               value={newNote}
               onChange={e => setNewNote(e.target.value)}
               placeholder="Nota (ej: marca, cantidad...)"
-              className="flex-1 px-3.5 py-2 rounded-xl font-body text-[13px] outline-none transition-all"
+              className="flex-1 px-3.5 py-2 rounded-xl font-body text-[16px] outline-none transition-all"
               style={{
                 background: 'var(--surface-card)',
                 border: '1.5px solid rgba(196,184,166,0.3)',

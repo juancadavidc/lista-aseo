@@ -319,7 +319,7 @@ export default function Products() {
               value={sort}
               onChange={e => setSort(e.target.value)}
               aria-label="Ordenar"
-              className="appearance-none pl-8 pr-7 py-2.5 rounded-xl font-body text-[13px] font-semibold outline-none transition-all cursor-pointer"
+              className="appearance-none pl-8 pr-7 py-2.5 rounded-xl font-body text-[16px] font-semibold outline-none transition-all cursor-pointer"
               style={{
                 background: 'var(--surface-elevated)',
                 border: '1.5px solid rgba(196,184,166,0.3)',
@@ -654,7 +654,7 @@ function ProductForm({ product, onSave, onCancel }) {
           onChange={e => setName(e.target.value)}
           placeholder="Ej: Jabon lavavajillas"
           required
-          className="w-full px-3.5 py-2.5 rounded-xl font-body text-[14px] outline-none transition-all"
+          className="w-full px-3.5 py-2.5 rounded-xl font-body text-[16px] outline-none transition-all"
           style={{
             background: 'var(--surface-elevated)',
             border: '1.5px solid rgba(196,184,166,0.3)',
@@ -718,7 +718,7 @@ function ProductForm({ product, onSave, onCancel }) {
             max="365"
             value={frequencyDays}
             onChange={e => setFrequencyDays(e.target.value)}
-            className="w-20 px-3 py-2 rounded-xl font-body text-[14px] text-center outline-none"
+            className="w-20 px-3 py-2 rounded-xl font-body text-[16px] text-center outline-none"
             style={{
               background: 'var(--surface-elevated)',
               border: '1.5px solid rgba(196,184,166,0.3)',
@@ -741,7 +741,7 @@ function ProductForm({ product, onSave, onCancel }) {
             max="99"
             value={units}
             onChange={e => setUnits(e.target.value)}
-            className="w-20 px-3 py-2 rounded-xl font-body text-[14px] text-center outline-none"
+            className="w-20 px-3 py-2 rounded-xl font-body text-[16px] text-center outline-none"
             style={{
               background: 'var(--surface-elevated)',
               border: '1.5px solid rgba(196,184,166,0.3)',
@@ -844,7 +844,7 @@ function EarlyOutOfStockModal({ product, actualDays, onAdjustUnits, onAdjustFreq
               max="99"
               value={newUnits}
               onChange={e => setNewUnits(e.target.value)}
-              className="w-20 px-3 py-2 rounded-xl font-body text-[14px] text-center outline-none"
+              className="w-20 px-3 py-2 rounded-xl font-body text-[16px] text-center outline-none"
               style={{ background: 'var(--surface-card)', border: '1.5px solid rgba(196,184,166,0.3)', color: 'var(--bark-700)' }}
             />
             <span className="font-body text-[13px]" style={{ color: 'var(--bark-300)' }}>unidades</span>
@@ -877,7 +877,7 @@ function EarlyOutOfStockModal({ product, actualDays, onAdjustUnits, onAdjustFreq
               max="365"
               value={newFrequency}
               onChange={e => setNewFrequency(e.target.value)}
-              className="w-20 px-3 py-2 rounded-xl font-body text-[14px] text-center outline-none"
+              className="w-20 px-3 py-2 rounded-xl font-body text-[16px] text-center outline-none"
               style={{ background: 'var(--surface-card)', border: '1.5px solid rgba(196,184,166,0.3)', color: 'var(--bark-700)' }}
             />
             <span className="font-body text-[13px]" style={{ color: 'var(--bark-300)' }}>dias</span>

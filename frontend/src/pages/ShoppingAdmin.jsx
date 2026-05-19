@@ -150,7 +150,7 @@ export default function ShoppingAdmin() {
             value={newName}
             onChange={e => setNewName(e.target.value)}
             placeholder="Nombre de categoria (ej: Almacen, Carniceria...)"
-            className="flex-1 px-3.5 py-2.5 rounded-xl font-body text-[14px] outline-none transition-all"
+            className="flex-1 px-3.5 py-2.5 rounded-xl font-body text-[16px] outline-none transition-all"
             style={{
               background: 'var(--surface-card)',
               border: '1.5px solid rgba(196,184,166,0.3)',
@@ -200,7 +200,7 @@ export default function ShoppingAdmin() {
                     type="text"
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
-                    className="flex-1 px-3 py-1.5 rounded-lg font-body text-[14px] outline-none"
+                    className="flex-1 px-3 py-1.5 rounded-lg font-body text-[16px] outline-none"
                     style={{
                       background: 'var(--surface-base)',
                       border: '1.5px solid var(--moss-400)',

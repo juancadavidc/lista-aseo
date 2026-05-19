@@ -144,7 +144,7 @@ export default function TaskForm({ task, onSave, onCancel }) {
             value={form.name}
             onChange={e => set('name', e.target.value)}
             placeholder="ej: Barrer la cocina"
-            className="w-full px-3.5 py-2.5 pr-10 rounded-xl font-body text-[14px] focus:outline-none transition-all"
+            className="w-full px-3.5 py-2.5 pr-10 rounded-xl font-body text-[16px] focus:outline-none transition-all"
             style={{
               background: 'var(--surface-elevated)',
               border: '1.5px solid rgba(196,184,166,0.3)',
@@ -166,7 +166,7 @@ export default function TaskForm({ task, onSave, onCancel }) {
           onChange={e => set('description', e.target.value)}
           placeholder="Instrucciones adicionales..."
           rows={2}
-          className="w-full px-3.5 py-2.5 rounded-xl font-body text-[14px] focus:outline-none resize-none transition-all"
+          className="w-full px-3.5 py-2.5 rounded-xl font-body text-[16px] focus:outline-none resize-none transition-all"
           style={{
             background: 'var(--surface-elevated)',
             border: '1.5px solid rgba(196,184,166,0.3)',
@@ -213,7 +213,7 @@ export default function TaskForm({ task, onSave, onCancel }) {
             placeholder={`${FREQUENCY_DEFAULTS[form.frequency_type]}`}
             min={1}
             max={365}
-            className="w-full px-3.5 py-2.5 pr-10 rounded-xl font-body text-[14px] focus:outline-none"
+            className="w-full px-3.5 py-2.5 pr-10 rounded-xl font-body text-[16px] focus:outline-none"
             style={{
               background: 'var(--surface-elevated)',
               border: `1.5px solid ${frequencyState(form.frequency_value) === 'invalid' ? 'var(--clay-500)' : 'rgba(196,184,166,0.3)'}`,
@@ -242,7 +242,7 @@ export default function TaskForm({ task, onSave, onCancel }) {
           value={form.product_name}
           onChange={e => set('product_name', e.target.value)}
           placeholder="ej: Fabuloso Lavanda"
-          className="w-full px-3.5 py-2.5 rounded-xl font-body text-[14px] focus:outline-none transition-all mb-2"
+          className="w-full px-3.5 py-2.5 rounded-xl font-body text-[16px] focus:outline-none transition-all mb-2"
           style={{
             background: 'var(--surface-elevated)',
             border: '1.5px solid rgba(196,184,166,0.3)',

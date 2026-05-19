@@ -106,7 +106,7 @@ export default function ShoppingHistory() {
               <select
                 value={categoryFilter}
                 onChange={e => setCategoryFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl font-body text-[13px] outline-none transition-all appearance-none cursor-pointer"
+                className="px-3 py-2 rounded-xl font-body text-[16px] outline-none transition-all appearance-none cursor-pointer"
                 style={{
                   background: 'var(--surface-card)',
                   border: '1.5px solid rgba(196,184,166,0.3)',
