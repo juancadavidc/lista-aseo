@@ -8,6 +8,14 @@
 
 ## [Fase 2] — Experiencias Agénticas
 
+### 2026-05-20 — Fix: la PWA en iOS no recibía actualizaciones (caché)
+- **Problema** — Tras mergear el fix de zoom en inputs, la PWA instalada en iOS seguía mostrando la versión vieja. Causa raíz: el `nginx.conf` no enviaba `Cache-Control` para `index.html` ni `sw.js`, así que iOS los cacheaba indefinidamente y nunca pedía los assets hasheados nuevos. Sumado a un `CACHE_NAME` fijo en el Service Worker, la app quedaba pegada en el build anterior.
+- **`nginx.conf` — política de caché correcta** — `/assets/*` (archivos con hash de Vite) se sirven `immutable` con `expires 1y`; `index.html` y todas las rutas SPA se sirven con `Cache-Control: no-cache`; `sw.js` con `no-cache` para que el navegador detecte cada nuevo deploy.
+- **`sw.js` — versionado de caché** — `CACHE_NAME` sube de `v1` a `v2`. Al cambiar los bytes del SW, el navegador lo reinstala y el handler `activate` purga el caché viejo (`v1`); con `skipWaiting()` + `clients.claim()` ya existentes, el SW nuevo toma control de inmediato.
+- **`index.html` — auto-recarga al actualizar** — listener `controllerchange` con guard `refreshing` recarga la página una sola vez cuando un nuevo Service Worker toma control, así el usuario ve el build nuevo sin tener que cerrar la PWA manualmente.
+- **Acción manual única requerida** — Los dispositivos que ya tienen el SW viejo cacheado necesitan forzar una limpieza una vez (cerrar la PWA del todo y reabrir con red, o desinstalar/reinstalar). A partir de este deploy, las futuras actualizaciones llegan solas.
+- Archivos: `frontend/nginx.conf`, `frontend/public/sw.js`, `frontend/index.html`.
+
 ### 2026-05-19 — Fix: zoom automático en inputs en iOS Safari (PWA)
 - **Problema** — Safari en iOS aplica zoom automático e irreversible al enfocar cualquier campo editable cuyo `font-size` computado sea menor a 16px. La app usaba `text-[14px]` y `text-[13px]` en inputs/textareas/selects, rompiendo la UX en PWA instalada.
 - **Red de seguridad global** — Regla `@supports (-webkit-touch-callout: none)` en `frontend/src/index.css` que fuerza `font-size: 16px` en `input`/`textarea`/`select`/`[contenteditable=true]` solo en iOS, excluyendo tipos no editables (checkbox, radio, range, file, submit, button, reset). Esto preserva tamaños en desktop si en el futuro alguien introduce un input pequeño por error.
