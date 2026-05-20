@@ -1,4 +1,4 @@
-const CACHE_NAME = 'casa-limpia-v1'
+const CACHE_NAME = 'casa-limpia-v2'
 
 const PRECACHE_URLS = [
   './',
