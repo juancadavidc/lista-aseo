@@ -8,6 +8,13 @@
 
 ## [Fase 2] — Experiencias Agénticas
 
+### 2026-05-20 — Edición inline de ítems en la lista de compras
+- **Editar ítems ya agregados** — cada ítem de `/shopping` (pendiente o comprado) gana un botón de lápiz que lo convierte en un formulario inline editable, replicando el patrón que ya existía en `ShoppingAdmin`. Resuelve el caso de "agregar/cambiar la categoría después de creado", además de corregir nombre y nota.
+- **Campos editables** — nombre, categoría (select con las categorías de la casa + "Sin categoria") y nota. Guardar con Enter, cancelar con Escape o el botón. No permite guardar con el nombre vacío.
+- **Sin cambios de backend** — el endpoint `PATCH /api/shopping-items/:id` y el cliente `updateShoppingItem(id, updates)` ya soportaban `name`/`note`/`category_id` (whitelist `SHOPPING_ITEM_UPDATABLE_COLUMNS`). El trabajo fue exclusivamente de UI: estado de edición local por ítem en el componente `ShoppingItem`, y un handler `handleSaveEdit` en el padre que persiste y recarga la lista.
+- **Tests** — `frontend/src/pages/__tests__/ShoppingList.test.jsx` suma 5 casos: render del form inline con valores actuales, asignar categoría a un ítem sin categoría, editar nombre+nota, cancelar sin guardar y bloqueo de guardado con nombre vacío. 160/160 tests verdes, build de Vite OK.
+- Archivos: `frontend/src/pages/ShoppingList.jsx`, `frontend/src/pages/__tests__/ShoppingList.test.jsx`.
+
 ### 2026-05-19 — Fix: zoom automático en inputs en iOS Safari (PWA)
 - **Problema** — Safari en iOS aplica zoom automático e irreversible al enfocar cualquier campo editable cuyo `font-size` computado sea menor a 16px. La app usaba `text-[14px]` y `text-[13px]` en inputs/textareas/selects, rompiendo la UX en PWA instalada.
 - **Red de seguridad global** — Regla `@supports (-webkit-touch-callout: none)` en `frontend/src/index.css` que fuerza `font-size: 16px` en `input`/`textarea`/`select`/`[contenteditable=true]` solo en iOS, excluyendo tipos no editables (checkbox, radio, range, file, submit, button, reset). Esto preserva tamaños en desktop si en el futuro alguien introduce un input pequeño por error.

@@ -87,6 +87,18 @@ export default function ShoppingList() {
     }
   }
 
+  async function handleSaveEdit(id, updates) {
+    try {
+      await updateShoppingItem(id, updates)
+      showToast('Cambios guardados')
+      await loadData()
+      return true
+    } catch {
+      showToast('Error al guardar', 'error')
+      return false
+    }
+  }
+
   async function handleDelete(item) {
     if (deletingId === item.id) {
       try {
@@ -413,9 +425,11 @@ export default function ShoppingList() {
                       <ShoppingItem
                         key={item.id}
                         item={item}
+                        categories={categories}
                         deletingId={deletingId}
                         onToggle={handleTogglePurchased}
                         onDelete={handleDelete}
+                        onSave={handleSaveEdit}
                         showCategoryBadge={false}
                       />
                     ))}
@@ -446,9 +460,11 @@ export default function ShoppingList() {
                   <ShoppingItem
                     key={item.id}
                     item={item}
+                    categories={categories}
                     deletingId={deletingId}
                     onToggle={handleTogglePurchased}
                     onDelete={handleDelete}
+                    onSave={handleSaveEdit}
                     showCategoryBadge={true}
                   />
                 ))}
@@ -489,9 +505,116 @@ function groupByCategory(items, categories) {
   return groups
 }
 
-function ShoppingItem({ item, deletingId, onToggle, onDelete, showCategoryBadge }) {
+function ShoppingItem({ item, categories, deletingId, onToggle, onDelete, onSave, showCategoryBadge }) {
   const isDeleting = deletingId === item.id
   const timeAgo = formatTimeAgo(item.created_at)
+
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState(item.name)
+  const [editNote, setEditNote] = useState(item.note || '')
+  const [editCategoryId, setEditCategoryId] = useState(item.category_id || '')
+  const [saving, setSaving] = useState(false)
+
+  function startEdit() {
+    setEditName(item.name)
+    setEditNote(item.note || '')
+    setEditCategoryId(item.category_id || '')
+    setIsEditing(true)
+  }
+
+  async function saveEdit() {
+    const name = editName.trim()
+    if (!name || saving) return
+    setSaving(true)
+    const ok = await onSave(item.id, {
+      name,
+      note: editNote.trim() || null,
+      category_id: editCategoryId || null,
+    })
+    setSaving(false)
+    if (ok) setIsEditing(false)
+  }
+
+  if (isEditing) {
+    return (
+      <div
+        className="rounded-xl overflow-hidden task-enter"
+        style={{
+          background: 'var(--surface-card)',
+          border: '1.5px solid var(--moss-400)',
+          boxShadow: '0 1px 3px rgba(26,22,20,0.04)',
+        }}
+      >
+        <div className="px-3.5 py-3 flex flex-col gap-2">
+          <input
+            type="text"
+            value={editName}
+            onChange={e => setEditName(e.target.value)}
+            placeholder="Nombre del producto"
+            className="w-full px-3 py-2 rounded-lg font-body text-[16px] outline-none"
+            style={{
+              background: 'var(--surface-base)',
+              border: '1.5px solid rgba(196,184,166,0.4)',
+              color: 'var(--bark-700)',
+            }}
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') saveEdit()
+              if (e.key === 'Escape') setIsEditing(false)
+            }}
+          />
+          <select
+            value={editCategoryId}
+            onChange={e => setEditCategoryId(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg font-body text-[16px] outline-none appearance-none cursor-pointer"
+            style={{
+              background: 'var(--surface-base)',
+              border: '1.5px solid rgba(196,184,166,0.4)',
+              color: editCategoryId ? 'var(--bark-700)' : 'var(--bark-300)',
+            }}
+          >
+            <option value="">Sin categoria</option>
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.emoji} {cat.name}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={editNote}
+            onChange={e => setEditNote(e.target.value)}
+            placeholder="Nota (ej: marca, cantidad...)"
+            className="w-full px-3 py-2 rounded-lg font-body text-[16px] outline-none"
+            style={{
+              background: 'var(--surface-base)',
+              border: '1.5px solid rgba(196,184,166,0.4)',
+              color: 'var(--bark-700)',
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') saveEdit()
+              if (e.key === 'Escape') setIsEditing(false)
+            }}
+          />
+          <div className="flex items-center justify-end gap-2 mt-0.5">
+            <button
+              onClick={() => setIsEditing(false)}
+              className="px-3 py-1.5 rounded-lg font-body font-semibold text-[12px] transition-all active:scale-95"
+              style={{ color: 'var(--bark-400)', background: 'rgba(196,184,166,0.15)' }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={saveEdit}
+              disabled={!editName.trim() || saving}
+              className="px-3 py-1.5 rounded-lg font-body font-semibold text-[12px] text-white transition-all active:scale-95 disabled:opacity-40"
+              style={{ background: 'var(--moss-500)' }}
+            >
+              {saving ? '...' : 'Guardar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -553,6 +676,19 @@ function ShoppingItem({ item, deletingId, onToggle, onDelete, showCategoryBadge 
             </span>
           </div>
         </div>
+
+        {/* Edit */}
+        <button
+          onClick={startEdit}
+          className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-90"
+          style={{ color: 'var(--bark-300)' }}
+          title="Editar"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
 
         {/* Delete */}
         <button
