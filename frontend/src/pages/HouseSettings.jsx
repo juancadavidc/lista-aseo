@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { authClient } from '../lib/auth'
 import { getActiveHouse, setActiveHouse, clearActiveHouse, AVATARS, COLORS } from '../lib/house'
 import { fetchHouseMembers, fetchHouseProfile, updateHouseProfile, fetchVapidKey, subscribePush, unsubscribePush, fetchPushStatus, deleteHouse, fetchInvitations, deleteInvitation, renewInvitation } from '../lib/api'
+import { HOME_SCREENS, setStoredHomeScreen, DEFAULT_HOME_SCREEN } from '../lib/homeScreen'
 
 export default function HouseSettings() {
   const navigate = useNavigate()
@@ -29,6 +30,7 @@ export default function HouseSettings() {
   const [invitations, setInvitations] = useState([])
   const [confirmingDeleteInvId, setConfirmingDeleteInvId] = useState(null)
   const [actingInvId, setActingInvId] = useState(null)
+  const [savingHomeScreen, setSavingHomeScreen] = useState(false)
   const { data: session } = authClient.useSession()
 
   const showToast = (msg, type = 'success') => {
@@ -220,6 +222,26 @@ export default function HouseSettings() {
     }
   }
 
+  async function handleHomeScreenChange(value) {
+    const previous = myProfile?.home_screen || DEFAULT_HOME_SCREEN
+    if (value === previous) return
+    setMyProfile(p => ({ ...(p || {}), home_screen: value }))
+    if (house?.id) setStoredHomeScreen(house.id, value)
+    setSavingHomeScreen(true)
+    try {
+      const updated = await updateHouseProfile({ home_screen: value })
+      setMyProfile(updated)
+      window.dispatchEvent(new CustomEvent('profileUpdated', { detail: updated }))
+      showToast('Pantalla de inicio actualizada')
+    } catch (err) {
+      setMyProfile(p => ({ ...(p || {}), home_screen: previous }))
+      if (house?.id) setStoredHomeScreen(house.id, previous)
+      showToast(err.message || 'Error al guardar', 'error')
+    } finally {
+      setSavingHomeScreen(false)
+    }
+  }
+
   function handleLeaveHouse() {
     clearActiveHouse()
     navigate('/houses')
@@ -395,6 +417,40 @@ export default function HouseSettings() {
           >
             Editar perfil
           </button>
+        </div>
+      </div>
+
+      {/* Home screen preference */}
+      <div className="mb-6">
+        <h3 className="font-display text-lg mb-1" style={{ color: 'var(--bark-700)' }}>
+          Pantalla de inicio
+        </h3>
+        <p className="font-body text-[12px] mb-3" style={{ color: 'var(--bark-300)' }}>
+          Elige la pantalla que ves al abrir esta casa.
+        </p>
+        <div
+          className="rounded-xl p-2 flex flex-wrap gap-2"
+          style={{ background: 'var(--surface-card)', border: '1px solid rgba(196,184,166,0.25)' }}
+        >
+          {HOME_SCREENS.map(s => {
+            const active = (myProfile?.home_screen || DEFAULT_HOME_SCREEN) === s.value
+            return (
+              <button
+                key={s.value}
+                type="button"
+                onClick={() => handleHomeScreenChange(s.value)}
+                disabled={savingHomeScreen}
+                className="px-3.5 py-2 rounded-xl font-body text-[13px] font-medium transition-all active:scale-95 disabled:opacity-60"
+                style={{
+                  background: active ? 'var(--moss-400)' : 'var(--surface-elevated)',
+                  color: active ? 'white' : 'var(--bark-500)',
+                  border: active ? 'none' : '1.5px solid rgba(196,184,166,0.3)',
+                }}
+              >
+                {s.label}
+              </button>
+            )
+          })}
         </div>
       </div>
 

@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { authClient } from '../lib/auth'
 import { getActiveHouse, clearActiveHouse } from '../lib/house'
 import { fetchHouseProfile, checkSuperAdmin } from '../lib/api'
+import { setStoredHomeScreen } from '../lib/homeScreen'
 import InstallPrompt from './InstallPrompt'
 
 export default function Layout() {
@@ -16,17 +17,21 @@ export default function Layout() {
   const dropdownRef = useRef(null)
 
   useEffect(() => {
-    fetchHouseProfile().then(setProfile).catch(() => {})
+    fetchHouseProfile().then(p => {
+      setProfile(p)
+      if (p?.home_screen && house?.id) setStoredHomeScreen(house.id, p.home_screen)
+    }).catch(() => {})
     checkSuperAdmin().then(r => setIsSuperAdmin(r.isSuperAdmin)).catch(() => {})
   }, [house?.id])
 
   useEffect(() => {
     function handleProfileUpdated(e) {
       setProfile(e.detail)
+      if (e.detail?.home_screen && house?.id) setStoredHomeScreen(house.id, e.detail.home_screen)
     }
     window.addEventListener('profileUpdated', handleProfileUpdated)
     return () => window.removeEventListener('profileUpdated', handleProfileUpdated)
-  }, [])
+  }, [house?.id])
 
   useEffect(() => {
     function handleClickOutside(e) {
