@@ -174,6 +174,8 @@ app.get('/api/houses/members', requireAuth, requireHouse, async (req, res) => {
   }
 })
 
+const VALID_HOME_SCREENS = ['tasks', 'shopping', 'products', 'stats', 'plants']
+
 // GET /api/houses/profile - get my profile for active house
 app.get('/api/houses/profile', requireAuth, requireHouse, async (req, res) => {
   try {
@@ -182,25 +184,38 @@ app.get('/api/houses/profile', requireAuth, requireHouse, async (req, res) => {
       [req.user.id, req.house.id]
     )
     if (rows.length === 0) {
-      return res.json({ user_id: req.user.id, organization_id: req.house.id, avatar: '🧑', color: '#6a9960' })
+      return res.json({ user_id: req.user.id, organization_id: req.house.id, avatar: '🧑', color: '#6a9960', home_screen: 'tasks' })
     }
-    res.json(rows[0])
+    const profile = rows[0]
+    if (!profile.home_screen) profile.home_screen = 'tasks'
+    res.json(profile)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
 })
 
-// PUT /api/houses/profile - update my avatar/color for active house
+// PUT /api/houses/profile - update my avatar/color/home_screen for active house
 app.put('/api/houses/profile', requireAuth, requireHouse, async (req, res) => {
   try {
-    const { avatar, color } = req.body
+    const { avatar, color, home_screen } = req.body
+    if (home_screen !== undefined && !VALID_HOME_SCREENS.includes(home_screen)) {
+      return res.status(400).json({ error: 'Pantalla de inicio invalida' })
+    }
+    const { rows: existing } = await pool.query(
+      'SELECT avatar, color, home_screen FROM house_member_profiles WHERE user_id = $1 AND organization_id = $2',
+      [req.user.id, req.house.id]
+    )
+    const current = existing[0] || { avatar: '🧑', color: '#6a9960', home_screen: 'tasks' }
+    const nextAvatar = avatar !== undefined ? avatar : current.avatar
+    const nextColor = color !== undefined ? color : current.color
+    const nextHomeScreen = home_screen !== undefined ? home_screen : (current.home_screen || 'tasks')
     const { rows } = await pool.query(`
-      INSERT INTO house_member_profiles (user_id, organization_id, avatar, color)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO house_member_profiles (user_id, organization_id, avatar, color, home_screen)
+      VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (user_id, organization_id)
-      DO UPDATE SET avatar = EXCLUDED.avatar, color = EXCLUDED.color
+      DO UPDATE SET avatar = EXCLUDED.avatar, color = EXCLUDED.color, home_screen = EXCLUDED.home_screen
       RETURNING *
-    `, [req.user.id, req.house.id, avatar || '🧑', color || '#6a9960'])
+    `, [req.user.id, req.house.id, nextAvatar || '🧑', nextColor || '#6a9960', nextHomeScreen])
     res.json(rows[0])
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -1366,6 +1381,9 @@ async function migrate() {
     await addColumnIfMissing('shopping_items', 'category_id', 'UUID REFERENCES shopping_categories(id) ON DELETE SET NULL')
     await pool.query('CREATE INDEX IF NOT EXISTS idx_shopping_items_category ON shopping_items(category_id)')
 
+    // Pantalla de inicio personalizable por usuario en cada casa
+    await addColumnIfMissing('house_member_profiles', 'home_screen', "TEXT NOT NULL DEFAULT 'tasks'")
+
     // Archivado de compras + historial para recomendaciones (Fase 2)
     await addColumnIfMissing('shopping_items', 'purchased_at', 'TIMESTAMPTZ')
     await addColumnIfMissing('shopping_items', 'archived_at', 'TIMESTAMPTZ')
@@ -1380,6 +1398,7 @@ async function migrate() {
         organization_id TEXT NOT NULL,
         avatar          TEXT NOT NULL DEFAULT '🧑',
         color           TEXT NOT NULL DEFAULT '#6a9960',
+        home_screen     TEXT NOT NULL DEFAULT 'tasks',
         created_at      TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(user_id, organization_id)
       )

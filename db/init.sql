@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS house_member_profiles (
     organization_id TEXT NOT NULL,
     avatar          TEXT NOT NULL DEFAULT '🧑',
     color           TEXT NOT NULL DEFAULT '#6a9960',
+    home_screen     TEXT NOT NULL DEFAULT 'tasks',
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, organization_id)
 );
