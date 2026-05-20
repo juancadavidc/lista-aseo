@@ -71,7 +71,7 @@ export default function Layout() {
   }
 
   const navItems = [
-    { to: '/', label: 'Tareas', end: true, activeColor: 'var(--moss-500)' },
+    { to: '/tasks', label: 'Tareas', end: true, activeColor: 'var(--moss-500)' },
     { to: '/stats', label: 'Stats', activeColor: 'var(--moss-500)' },
     { to: '/products', label: 'Productos', activeColor: 'var(--clay-500)' },
     { to: '/plants', label: 'Plantas', activeColor: 'var(--moss-500)' },

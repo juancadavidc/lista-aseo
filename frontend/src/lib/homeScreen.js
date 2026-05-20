@@ -1,5 +1,5 @@
 export const HOME_SCREENS = [
-  { value: 'tasks',    label: 'Tareas',    route: '/' },
+  { value: 'tasks',    label: 'Tareas',    route: '/tasks' },
   { value: 'shopping', label: 'Compras',   route: '/shopping' },
   { value: 'products', label: 'Productos', route: '/products' },
   { value: 'stats',    label: 'Stats',     route: '/stats' },
