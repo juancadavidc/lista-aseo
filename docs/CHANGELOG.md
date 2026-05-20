@@ -8,6 +8,13 @@
 
 ## [Fase 2] — Experiencias Agénticas
 
+### 2026-05-20 — Edición inline de ítems en la lista de compras
+- **Editar ítems ya agregados** — cada ítem de `/shopping` (pendiente o comprado) gana un botón de lápiz que lo convierte en un formulario inline editable, replicando el patrón que ya existía en `ShoppingAdmin`. Resuelve el caso de "agregar/cambiar la categoría después de creado", además de corregir nombre y nota.
+- **Campos editables** — nombre, categoría (select con las categorías de la casa + "Sin categoria") y nota. Guardar con Enter, cancelar con Escape o el botón. No permite guardar con el nombre vacío.
+- **Sin cambios de backend** — el endpoint `PATCH /api/shopping-items/:id` y el cliente `updateShoppingItem(id, updates)` ya soportaban `name`/`note`/`category_id` (whitelist `SHOPPING_ITEM_UPDATABLE_COLUMNS`). El trabajo fue exclusivamente de UI: estado de edición local por ítem en el componente `ShoppingItem`, y un handler `handleSaveEdit` en el padre que persiste y recarga la lista.
+- **Tests** — `frontend/src/pages/__tests__/ShoppingList.test.jsx` suma 5 casos: render del form inline con valores actuales, asignar categoría a un ítem sin categoría, editar nombre+nota, cancelar sin guardar y bloqueo de guardado con nombre vacío. 160/160 tests verdes, build de Vite OK.
+- Archivos: `frontend/src/pages/ShoppingList.jsx`, `frontend/src/pages/__tests__/ShoppingList.test.jsx`.
+
 ### 2026-05-20 — Pantalla de inicio personalizable por usuario
 - **Cada miembro elige su pantalla de inicio en la casa** — en `Configuracion` > `Pantalla de inicio` el usuario puede escoger entre `Tareas` (default), `Compras`, `Productos`, `Stats` y `Plantas`. La preferencia es por par `(user_id, organization_id)`: cambia por casa, no es global. Cubre el caso real de hogares donde un miembro vive en compras y otro en tareas — cada uno entra a lo suyo.
 - **Backend** — nueva columna `home_screen TEXT NOT NULL DEFAULT 'tasks'` en `house_member_profiles` (migracion automatica via `addColumnIfMissing` + `init.sql`). `GET /api/houses/profile` la devuelve con fallback a `'tasks'`. `PUT /api/houses/profile` ahora acepta `home_screen` y valida contra whitelist `['tasks','shopping','products','stats','plants']`; al hacer UPDATE parcial preserva los campos no enviados (antes el endpoint sobreescribia avatar y color incluso si solo querias cambiar uno).

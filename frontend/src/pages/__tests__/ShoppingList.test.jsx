@@ -20,6 +20,7 @@ import {
   fetchShoppingCategories,
   fetchShoppingRecommendations,
   createShoppingItem,
+  updateShoppingItem,
 } from '../../lib/api'
 
 const MOCK_CATEGORIES = [
@@ -249,5 +250,124 @@ describe('ShoppingList — Smart Tags integration', () => {
         category_id: 'cat-1',
       })
     })
+  })
+})
+
+describe('ShoppingList — edición de ítems', () => {
+  const PENDING_ITEM = {
+    id: 'item-1',
+    name: 'Detergente',
+    note: null,
+    category_id: null,
+    category_name: null,
+    category_emoji: null,
+    is_purchased: false,
+    added_by: 'Juan',
+    created_at: new Date().toISOString(),
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    fetchShoppingItems.mockResolvedValue([PENDING_ITEM])
+    fetchShoppingCategories.mockResolvedValue(MOCK_CATEGORIES)
+    fetchShoppingRecommendations.mockResolvedValue([])
+    updateShoppingItem.mockResolvedValue({ ...PENDING_ITEM })
+  })
+
+  it('al tocar editar muestra el formulario inline con los valores actuales', async () => {
+    const user = userEvent.setup()
+    renderShoppingList()
+
+    await waitFor(() => {
+      expect(screen.getByText('Detergente')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByTitle('Editar'))
+
+    expect(screen.getByDisplayValue('Detergente')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument()
+  })
+
+  it('asignar una categoría a un ítem sin categoría llama a updateShoppingItem', async () => {
+    const user = userEvent.setup()
+    renderShoppingList()
+
+    await waitFor(() => {
+      expect(screen.getByText('Detergente')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByTitle('Editar'))
+
+    // En modo edición hay 2 selects: el del form de agregar y el de la edición.
+    const selects = screen.getAllByRole('combobox')
+    await user.selectOptions(selects[selects.length - 1], 'cat-1')
+
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => {
+      expect(updateShoppingItem).toHaveBeenCalledWith('item-1', {
+        name: 'Detergente',
+        note: null,
+        category_id: 'cat-1',
+      })
+    })
+  })
+
+  it('editar el nombre y la nota envía los nuevos valores', async () => {
+    const user = userEvent.setup()
+    renderShoppingList()
+
+    await waitFor(() => {
+      expect(screen.getByText('Detergente')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByTitle('Editar'))
+
+    const nameInput = screen.getByDisplayValue('Detergente')
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Detergente liquido')
+
+    await user.type(screen.getByPlaceholderText('Nota (ej: marca, cantidad...)'), 'marca Fab')
+
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => {
+      expect(updateShoppingItem).toHaveBeenCalledWith('item-1', {
+        name: 'Detergente liquido',
+        note: 'marca Fab',
+        category_id: null,
+      })
+    })
+  })
+
+  it('cancelar sale del modo edición sin guardar', async () => {
+    const user = userEvent.setup()
+    renderShoppingList()
+
+    await waitFor(() => {
+      expect(screen.getByText('Detergente')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByTitle('Editar'))
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(updateShoppingItem).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument()
+    expect(screen.getByText('Detergente')).toBeInTheDocument()
+  })
+
+  it('no permite guardar con el nombre vacío', async () => {
+    const user = userEvent.setup()
+    renderShoppingList()
+
+    await waitFor(() => {
+      expect(screen.getByText('Detergente')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByTitle('Editar'))
+    await user.clear(screen.getByDisplayValue('Detergente'))
+
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
   })
 })
