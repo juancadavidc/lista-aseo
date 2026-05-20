@@ -8,6 +8,13 @@
 
 ## [Fase 2] — Experiencias Agénticas
 
+### 2026-05-20 — Fix: Tareas inaccesible al elegir otra pantalla de inicio
+- **Problema** — Al configurar una pantalla de inicio distinta a `Tareas` (p. ej. `Compras`), Tareas quedaba inalcanzable. Causa raíz: la página de Tareas (`Home`) solo existía en la ruta `/`, que es el despachador `HomeRedirect`. Cuando la preferencia no era `tasks`, entrar a `/` redirigía a la pantalla configurada, y como el enlace "Tareas" del menú apuntaba a `/`, siempre terminaba redirigiendo fuera de Tareas.
+- **Solución** — Tareas gana su propia ruta estable `/tasks` (en `main.jsx`), independiente del despachador. `HomeRedirect` queda como dispatcher puro: siempre hace `<Navigate replace>` a la ruta de la preferencia. El enlace "Tareas" del menú (`Layout.jsx`) ahora apunta a `/tasks`, y `homeScreen.js` mapea `tasks → /tasks`.
+- **Sin loops ni cambios de backend** — `getStoredHomeScreen` ya garantiza un valor válido, y todas las pantallas mapean a rutas propias (ninguna a `/`), así que no hay auto-redirección. El logo sigue apuntando a `/` (lleva a la pantalla de inicio configurada).
+- **Tests** — frontend 160/160, build de Vite verde.
+- Archivos: `frontend/src/main.jsx`, `frontend/src/components/Layout.jsx`, `frontend/src/lib/homeScreen.js`.
+
 ### 2026-05-20 — Edición inline de ítems en la lista de compras
 - **Editar ítems ya agregados** — cada ítem de `/shopping` (pendiente o comprado) gana un botón de lápiz que lo convierte en un formulario inline editable, replicando el patrón que ya existía en `ShoppingAdmin`. Resuelve el caso de "agregar/cambiar la categoría después de creado", además de corregir nombre y nota.
 - **Campos editables** — nombre, categoría (select con las categorías de la casa + "Sin categoria") y nota. Guardar con Enter, cancelar con Escape o el botón. No permite guardar con el nombre vacío.

@@ -18,7 +18,7 @@ import Stats from './pages/Stats'
 import Layout from './components/Layout'
 import { authClient } from './lib/auth'
 import { getActiveHouse } from './lib/house'
-import { getStoredHomeScreen, routeForHomeScreen, DEFAULT_HOME_SCREEN } from './lib/homeScreen'
+import { getStoredHomeScreen, routeForHomeScreen } from './lib/homeScreen'
 
 function RequireAuth({ children }) {
   const { data: session, isPending } = authClient.useSession()
@@ -47,10 +47,7 @@ function RequireHouse({ children }) {
 function HomeRedirect() {
   const house = getActiveHouse()
   const preferred = getStoredHomeScreen(house?.id)
-  if (preferred && preferred !== DEFAULT_HOME_SCREEN) {
-    return <Navigate to={routeForHomeScreen(preferred)} replace />
-  }
-  return <Home />
+  return <Navigate to={routeForHomeScreen(preferred)} replace />
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -67,6 +64,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         {/* Authenticated + house selected */}
         <Route element={<RequireAuth><RequireHouse><Layout /></RequireHouse></RequireAuth>}>
           <Route path="/" element={<HomeRedirect />} />
+          <Route path="/tasks" element={<Home />} />
           <Route path="/products" element={<Products />} />
           <Route path="/plants" element={<Plants />} />
           <Route path="/shopping" element={<ShoppingList />} />
