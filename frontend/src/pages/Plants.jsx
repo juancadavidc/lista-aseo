@@ -213,7 +213,7 @@ export default function Plants() {
               value={sort}
               onChange={e => setSort(e.target.value)}
               aria-label="Ordenar"
-              className="appearance-none pl-8 pr-7 py-2.5 rounded-xl font-body text-[13px] font-semibold outline-none transition-all cursor-pointer"
+              className="appearance-none pl-8 pr-7 py-2.5 rounded-xl font-body text-[16px] font-semibold outline-none transition-all cursor-pointer"
               style={{
                 background: 'var(--surface-elevated)',
                 border: '1.5px solid rgba(196,184,166,0.3)',
@@ -467,7 +467,7 @@ function PlantForm({ plant, onSave, onCancel }) {
           onChange={e => setName(e.target.value)}
           placeholder="Ej: Monstera del salon"
           required
-          className="w-full px-3.5 py-2.5 rounded-xl font-body text-[14px] outline-none transition-all"
+          className="w-full px-3.5 py-2.5 rounded-xl font-body text-[16px] outline-none transition-all"
           style={{
             background: 'var(--surface-elevated)',
             border: '1.5px solid rgba(196,184,166,0.3)',
@@ -487,7 +487,7 @@ function PlantForm({ plant, onSave, onCancel }) {
           onChange={e => setNotes(e.target.value)}
           placeholder="Ubicacion, especie, cuidados especiales..."
           rows={2}
-          className="w-full px-3.5 py-2.5 rounded-xl font-body text-[14px] outline-none transition-all resize-none"
+          className="w-full px-3.5 py-2.5 rounded-xl font-body text-[16px] outline-none transition-all resize-none"
           style={{
             background: 'var(--surface-elevated)',
             border: '1.5px solid rgba(196,184,166,0.3)',
@@ -526,7 +526,7 @@ function PlantForm({ plant, onSave, onCancel }) {
             max="365"
             value={frequencyDays}
             onChange={e => setFrequencyDays(e.target.value)}
-            className="w-20 px-3 py-2 rounded-xl font-body text-[14px] text-center outline-none"
+            className="w-20 px-3 py-2 rounded-xl font-body text-[16px] text-center outline-none"
             style={{
               background: 'var(--surface-elevated)',
               border: '1.5px solid rgba(196,184,166,0.3)',

@@ -8,6 +8,16 @@
 
 ## [Fase 2] — Experiencias Agénticas
 
+### 2026-05-19 — Fix: zoom automático en inputs en iOS Safari (PWA)
+- **Problema** — Safari en iOS aplica zoom automático e irreversible al enfocar cualquier campo editable cuyo `font-size` computado sea menor a 16px. La app usaba `text-[14px]` y `text-[13px]` en inputs/textareas/selects, rompiendo la UX en PWA instalada.
+- **Red de seguridad global** — Regla `@supports (-webkit-touch-callout: none)` en `frontend/src/index.css` que fuerza `font-size: 16px` en `input`/`textarea`/`select`/`[contenteditable=true]` solo en iOS, excluyendo tipos no editables (checkbox, radio, range, file, submit, button, reset). Esto preserva tamaños en desktop si en el futuro alguien introduce un input pequeño por error.
+- **Corrección directa por elemento** — Las 29 instancias con `text-[14px]` o `text-[13px]` se elevaron a `text-[16px]` en `SearchInput`, `TaskForm` (5 campos), `Login` (2), `Register` (4), `HouseSelect` (1), `HouseSettings` (1 invite; el rename ya estaba a 28px), `Plants` (1 select sort, 1 nombre, 1 textarea notas, 1 number frequency), `Products` (1 select sort, 1 nombre, 4 number units/frequency), `ShoppingAdmin` (2), `ShoppingList` (1 nombre, 1 select categoría, 1 nota), `ShoppingHistory` (1 select filtro).
+- **Accesibilidad preservada** — Se confirmó que el meta viewport en `frontend/index.html` mantiene `initial-scale=1.0` sin `maximum-scale` ni `user-scalable=no`, así que el usuario sigue pudiendo hacer pinch-to-zoom.
+- **Jerarquía visual** — La diferencia de 14→16px es mínima (2px) y los inputs ya tenían padding similar; los selects compactos (13→16px) crecen ligeramente pero no rompen la composición. No se usó `transform: scale()` porque la diferencia visual no lo amerita.
+- **Sin contentEditable ni rich-text editors** en el código actual (verificado).
+- **Tests** — 155/155 tests pasan, build de Vite verde (417 kB, 23 kB CSS gzip 5.82 kB).
+- Archivos: `frontend/src/index.css`, `frontend/src/components/SearchInput.jsx`, `frontend/src/components/TaskForm.jsx`, `frontend/src/pages/Login.jsx`, `frontend/src/pages/Register.jsx`, `frontend/src/pages/HouseSelect.jsx`, `frontend/src/pages/HouseSettings.jsx`, `frontend/src/pages/Plants.jsx`, `frontend/src/pages/Products.jsx`, `frontend/src/pages/ShoppingAdmin.jsx`, `frontend/src/pages/ShoppingList.jsx`, `frontend/src/pages/ShoppingHistory.jsx`.
+
 ### 2026-05-17 — Archivado de compras + recomendador por periodicidad
 - **Compras dejan historial en vez de borrarse** — `shopping_items` gana columnas `purchased_at` (se setea automaticamente al marcar `is_purchased=true`, se limpia al desmarcar) y `archived_at` (marca el item como archivado, lo saca de la lista activa). Migracion automatica en `migrate()` + `init.sql` para installs nuevos.
 - **Auto-archivado lazy a los 7 dias** — `GET /api/shopping-items` corre un `UPDATE` previo que archiva los comprados con `purchased_at` mayor a 7 dias. Sin cron, sin worker: aprovecha el trafico normal de la lista. La lista activa filtra por `archived_at IS NULL`.

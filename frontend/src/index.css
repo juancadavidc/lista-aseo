@@ -41,6 +41,18 @@
     background-color: var(--surface-base);
     overflow-x: hidden;
   }
+
+  /* iOS Safari aplica zoom automatico irreversible a campos editables
+     cuyo font-size computado es menor a 16px. Esta regla defensiva
+     garantiza el minimo en iOS sin afectar otras plataformas. */
+  @supports (-webkit-touch-callout: none) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not([type='button']):not([type='reset']),
+    textarea,
+    select,
+    [contenteditable='true'] {
+      font-size: 16px;
+    }
+  }
 }
 
 @layer components {

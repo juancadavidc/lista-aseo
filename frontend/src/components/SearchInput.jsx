@@ -11,7 +11,7 @@ export default function SearchInput({ value, onChange, placeholder = 'Buscar...'
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-9 pr-9 py-2.5 rounded-xl font-body text-[14px] focus:outline-none transition-all"
+        className="w-full pl-9 pr-9 py-2.5 rounded-xl font-body text-[16px] focus:outline-none transition-all"
         style={{
           background: 'var(--surface-elevated)',
           border: '1.5px solid rgba(196,184,166,0.3)',
