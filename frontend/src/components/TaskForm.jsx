@@ -7,6 +7,7 @@ const FREQ_ICONS = {
   weekly: '📅',
   biweekly: '📆',
   monthly: '🗓️',
+  once: '✅',
 }
 
 function frequencyState(raw) {
@@ -182,7 +183,7 @@ export default function TaskForm({ task, onSave, onCancel }) {
           Frecuencia
         </label>
         <div className="grid grid-cols-4 gap-1.5">
-          {Object.entries(FREQUENCY_LABELS).map(([value, label]) => (
+          {Object.entries(FREQUENCY_LABELS).filter(([value]) => value !== 'once').map(([value, label]) => (
             <button
               key={value}
               type="button"
@@ -199,8 +200,22 @@ export default function TaskForm({ task, onSave, onCancel }) {
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          onClick={() => { set('frequency_type', 'once'); set('frequency_value', '') }}
+          className="mt-1.5 w-full py-2.5 px-3 rounded-xl font-body font-medium text-[12px] transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+          style={{
+            background: form.frequency_type === 'once' ? 'var(--moss-400)' : 'var(--surface-elevated)',
+            color: form.frequency_type === 'once' ? 'white' : 'var(--bark-400)',
+            border: `1.5px solid ${form.frequency_type === 'once' ? 'var(--moss-400)' : 'rgba(196,184,166,0.3)'}`,
+          }}
+        >
+          <span className="text-base">{FREQ_ICONS.once}</span>
+          Única vez · se archiva al cumplirse
+        </button>
       </div>
 
+      {form.frequency_type !== 'once' && (
       <div>
         <label className="block font-body font-semibold text-[12px] uppercase tracking-wider mb-1.5" style={{ color: 'var(--bark-400)' }}>
           Dias <span style={{ color: 'var(--bark-300)', fontWeight: 400, textTransform: 'none' }}>(default: {FREQUENCY_DEFAULTS[form.frequency_type]})</span>
@@ -231,6 +246,7 @@ export default function TaskForm({ task, onSave, onCancel }) {
           </p>
         )}
       </div>
+      )}
 
       {/* Product info section */}
       <div>
