@@ -8,6 +8,13 @@
 
 ## [Fase 2] — Experiencias Agénticas
 
+### 2026-05-24 — UI: "Única vez" integrada a la grilla de frecuencias
+- **Consistencia visual** — la opción "Única vez" dejó de ser un banner ancho separado y ahora es un recuadro igual a las frecuencias recurrentes, dentro del mismo grid (ahora de 5 columnas: Diario/Semanal/Quincenal/Mensual/Única vez). Rompía con el patrón de selección del resto.
+- **Icono propio** — pasó de `✅` (se confundía con "completado") a `🏁` (bandera de meta: se completa y se archiva).
+- **Aviso preservado** — el texto "se archiva al cumplirse" se movió a una nota corta debajo del grid que solo aparece cuando "Única vez" está seleccionada, en lugar de ir dentro del botón.
+- **Tests** — frontend (TaskCard + tasks) 33/33, build de Vite verde.
+- Archivos: `frontend/src/components/TaskForm.jsx`.
+
 ### 2026-05-24 — Tareas efímeras (de una sola vez)
 - **Nueva frecuencia "Única vez"** — además de las recurrentes (Diario/Semanal/Quincenal/Mensual), una tarea puede marcarse como efímera. Cubre el caso de pendientes puntuales ("colgar el cuadro", "llamar al técnico") que no tiene sentido que reaparezcan en la lista.
 - **Auto-desactivación al cumplirse** — al registrar la completación de una tarea `once`, el backend hace `UPDATE tasks SET is_active = false` en el mismo request. Desaparece de pendientes sin pasos extra. Queda inactiva (no se borra): conserva su historial y se puede ver/reactivar desde el panel de Admin (filtro de inactivas).
