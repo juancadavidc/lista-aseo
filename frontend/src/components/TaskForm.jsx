@@ -7,7 +7,7 @@ const FREQ_ICONS = {
   weekly: '📅',
   biweekly: '📆',
   monthly: '🗓️',
-  once: '✅',
+  once: '🏁',
 }
 
 function frequencyState(raw) {
@@ -182,13 +182,13 @@ export default function TaskForm({ task, onSave, onCancel }) {
         <label className="block font-body font-semibold text-[12px] uppercase tracking-wider mb-1.5" style={{ color: 'var(--bark-400)' }}>
           Frecuencia
         </label>
-        <div className="grid grid-cols-4 gap-1.5">
-          {Object.entries(FREQUENCY_LABELS).filter(([value]) => value !== 'once').map(([value, label]) => (
+        <div className="grid grid-cols-5 gap-1.5">
+          {Object.entries(FREQUENCY_LABELS).map(([value, label]) => (
             <button
               key={value}
               type="button"
               onClick={() => { set('frequency_type', value); set('frequency_value', '') }}
-              className="py-2.5 px-2 rounded-xl font-body font-medium text-[12px] transition-all active:scale-95 flex flex-col items-center gap-1"
+              className="min-h-[64px] py-2 px-1 rounded-xl font-body font-medium text-[11px] leading-tight text-center transition-all active:scale-95 flex flex-col items-center justify-center gap-1"
               style={{
                 background: form.frequency_type === value ? 'var(--moss-400)' : 'var(--surface-elevated)',
                 color: form.frequency_type === value ? 'white' : 'var(--bark-400)',
@@ -200,19 +200,11 @@ export default function TaskForm({ task, onSave, onCancel }) {
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => { set('frequency_type', 'once'); set('frequency_value', '') }}
-          className="mt-1.5 w-full py-2.5 px-3 rounded-xl font-body font-medium text-[12px] transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
-          style={{
-            background: form.frequency_type === 'once' ? 'var(--moss-400)' : 'var(--surface-elevated)',
-            color: form.frequency_type === 'once' ? 'white' : 'var(--bark-400)',
-            border: `1.5px solid ${form.frequency_type === 'once' ? 'var(--moss-400)' : 'rgba(196,184,166,0.3)'}`,
-          }}
-        >
-          <span className="text-base">{FREQ_ICONS.once}</span>
-          Única vez · se archiva al cumplirse
-        </button>
+        {form.frequency_type === 'once' && (
+          <p className="font-body text-[11px] mt-1.5" style={{ color: 'var(--bark-300)' }}>
+            Se archiva automáticamente al cumplirse.
+          </p>
+        )}
       </div>
 
       {form.frequency_type !== 'once' && (
