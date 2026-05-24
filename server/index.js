@@ -341,7 +341,7 @@ app.post('/api/houses/seed', requireAuth, requireHouse, requireRole('owner', 'ad
     }
 
     // Insert tasks — from custom array if provided, otherwise from hardcoded templates
-    const validFrequencies = ['daily', 'weekly', 'biweekly', 'monthly']
+    const validFrequencies = ['daily', 'weekly', 'biweekly', 'monthly', 'once']
 
     if (customTasks && customTasks.length > 0) {
       // Validate each task
@@ -512,7 +512,7 @@ app.get('/api/tasks/pending', requireAuth, requireHouse, async (req, res) => {
         AND t.organization_id = $1
         AND (
           c.last_completed_at IS NULL
-          OR NOW() >= c.last_completed_at + (t.frequency_value * INTERVAL '1 day')
+          OR (t.frequency_type <> 'once' AND NOW() >= c.last_completed_at + (t.frequency_value * INTERVAL '1 day'))
           OR (t.last_reset_at IS NOT NULL AND t.last_reset_at > c.last_completed_at)
         )
       ORDER BY t.name
@@ -614,7 +614,7 @@ app.post('/api/completions', requireAuth, requireHouse, async (req, res) => {
     const { task_id, completed_at } = req.body
     // Verify task belongs to this house
     const { rows: taskCheck } = await pool.query(
-      'SELECT id FROM tasks WHERE id = $1 AND organization_id = $2', [task_id, req.house.id]
+      'SELECT id, name, frequency_type FROM tasks WHERE id = $1 AND organization_id = $2', [task_id, req.house.id]
     )
     if (taskCheck.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' })
 
@@ -623,9 +623,16 @@ app.post('/api/completions', requireAuth, requireHouse, async (req, res) => {
       [task_id, completed_at || new Date().toISOString(), req.user.name || null, req.user.id]
     )
 
+    // Tareas efimeras de una sola vez: se desactivan automaticamente al cumplirse.
+    if (taskCheck[0].frequency_type === 'once') {
+      await pool.query(
+        'UPDATE tasks SET is_active = false WHERE id = $1 AND organization_id = $2',
+        [task_id, req.house.id]
+      )
+    }
+
     // Send push notification to house members
-    const { rows: taskInfo } = await pool.query('SELECT name FROM tasks WHERE id = $1', [task_id])
-    const taskName = taskInfo[0]?.name || 'una tarea'
+    const taskName = taskCheck[0].name || 'una tarea'
     const userName = req.user.name || 'Alguien'
     sendPushToHouse(req.house.id, {
       title: 'Tarea completada',

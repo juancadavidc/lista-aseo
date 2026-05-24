@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name        TEXT NOT NULL,
     description TEXT,
-    frequency_type  TEXT NOT NULL CHECK (frequency_type IN ('daily', 'weekly', 'biweekly', 'monthly')),
+    frequency_type  TEXT NOT NULL CHECK (frequency_type IN ('daily', 'weekly', 'biweekly', 'monthly', 'once')),
     frequency_value INTEGER NOT NULL DEFAULT 1,
     is_active   BOOLEAN NOT NULL DEFAULT true,
     product_name  TEXT,
@@ -13,6 +13,11 @@ CREATE TABLE IF NOT EXISTS tasks (
 );
 
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS last_reset_at TIMESTAMPTZ;
+
+-- Permite tareas efimeras de una sola vez ('once'): se desactivan al cumplirse.
+ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_frequency_type_check;
+ALTER TABLE tasks ADD CONSTRAINT tasks_frequency_type_check
+    CHECK (frequency_type IN ('daily', 'weekly', 'biweekly', 'monthly', 'once'));
 
 CREATE TABLE IF NOT EXISTS completions (
     id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,

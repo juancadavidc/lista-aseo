@@ -13,6 +13,7 @@ export const FREQUENCY_LABELS = {
   weekly: 'Semanal',
   biweekly: 'Quincenal',
   monthly: 'Mensual',
+  once: 'Única vez',
 }
 
 export const FREQUENCY_DEFAULTS = {
@@ -20,6 +21,7 @@ export const FREQUENCY_DEFAULTS = {
   weekly: 7,
   biweekly: 14,
   monthly: 30,
+  once: 1,
 }
 
 export function frequencyToHours(type, value) {
@@ -30,6 +32,8 @@ export function frequencyToHours(type, value) {
 export function isTaskPending(task, lastCompletedAt) {
   if (!task.is_active) return false
   if (!lastCompletedAt) return true
+  // Tareas de una sola vez no recurren: una vez completadas dejan de estar pendientes.
+  if (task.frequency_type === 'once') return false
 
   const hours = frequencyToHours(task.frequency_type, task.frequency_value)
   const nextDue = new Date(lastCompletedAt).getTime() + hours * 3600 * 1000
@@ -61,6 +65,7 @@ export function urgencyBucket(task, lastCompletedAt) {
 
 export function frequencyLabel(task) {
   const base = FREQUENCY_LABELS[task.frequency_type] || task.frequency_type
+  if (task.frequency_type === 'once') return base
   if (task.frequency_value && task.frequency_value !== FREQUENCY_DEFAULTS[task.frequency_type]) {
     return `Cada ${task.frequency_value} dias`
   }

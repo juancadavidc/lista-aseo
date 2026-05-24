@@ -8,6 +8,15 @@
 
 ## [Fase 2] — Experiencias Agénticas
 
+### 2026-05-24 — Tareas efímeras (de una sola vez)
+- **Nueva frecuencia "Única vez"** — además de las recurrentes (Diario/Semanal/Quincenal/Mensual), una tarea puede marcarse como efímera. Cubre el caso de pendientes puntuales ("colgar el cuadro", "llamar al técnico") que no tiene sentido que reaparezcan en la lista.
+- **Auto-desactivación al cumplirse** — al registrar la completación de una tarea `once`, el backend hace `UPDATE tasks SET is_active = false` en el mismo request. Desaparece de pendientes sin pasos extra. Queda inactiva (no se borra): conserva su historial y se puede ver/reactivar desde el panel de Admin (filtro de inactivas).
+- **No recurre** — el query `GET /api/tasks/pending` excluye el cálculo de intervalo para `frequency_type = 'once'` (`AND t.frequency_type <> 'once'`). Una tarea de una sola vez solo vuelve a aparecer si nunca se completó o si se usa "marcar pendiente" (reset) explícito.
+- **Backend** — `db/init.sql`: el `CHECK` de `frequency_type` ahora admite `'once'`, con migración incremental para BDs existentes (`DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT`). `server/index.js`: guard de recurrencia en pendientes, validación de onboarding ampliada y auto-desactivación en `POST /api/completions` (reutilizando una sola consulta para nombre y frecuencia).
+- **Frontend** — `lib/tasks.js`: nueva etiqueta/`default` `once`, `isTaskPending` y `frequencyLabel` tratan el caso. `TaskForm.jsx`: botón "Única vez" separado de la grilla recurrente y el campo "Días" se oculta cuando no aplica. `Admin.jsx`: ícono propio para la frecuencia efímera.
+- **Tests** — frontend 163/163 (4 casos nuevos en `tasks.test.js`), backend 70/70, build de Vite verde.
+- Archivos: `db/init.sql`, `server/index.js`, `frontend/src/lib/tasks.js`, `frontend/src/components/TaskForm.jsx`, `frontend/src/pages/Admin.jsx`, `frontend/src/lib/__tests__/tasks.test.js`.
+
 ### 2026-05-20 — Fix: Tareas inaccesible al elegir otra pantalla de inicio
 - **Problema** — Al configurar una pantalla de inicio distinta a `Tareas` (p. ej. `Compras`), Tareas quedaba inalcanzable. Causa raíz: la página de Tareas (`Home`) solo existía en la ruta `/`, que es el despachador `HomeRedirect`. Cuando la preferencia no era `tasks`, entrar a `/` redirigía a la pantalla configurada, y como el enlace "Tareas" del menú apuntaba a `/`, siempre terminaba redirigiendo fuera de Tareas.
 - **Solución** — Tareas gana su propia ruta estable `/tasks` (en `main.jsx`), independiente del despachador. `HomeRedirect` queda como dispatcher puro: siempre hace `<Navigate replace>` a la ruta de la preferencia. El enlace "Tareas" del menú (`Layout.jsx`) ahora apunta a `/tasks`, y `homeScreen.js` mapea `tasks → /tasks`.

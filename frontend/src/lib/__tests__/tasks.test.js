@@ -71,6 +71,17 @@ describe('isTaskPending', () => {
     const old = new Date(Date.now() - 1000 * 60 * 60 * 30).toISOString() // hace 30h
     expect(isTaskPending(task, old)).toBe(true)
   })
+
+  it('una tarea de una sola vez nunca recurre tras completarse', () => {
+    const task = { is_active: true, frequency_type: 'once', frequency_value: 1 }
+    const old = new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString() // hace 30 dias
+    expect(isTaskPending(task, old)).toBe(false)
+  })
+
+  it('una tarea de una sola vez sin completar esta pendiente', () => {
+    const task = { is_active: true, frequency_type: 'once', frequency_value: 1 }
+    expect(isTaskPending(task, null)).toBe(true)
+  })
 })
 
 describe('overdueLabel', () => {
@@ -130,15 +141,20 @@ describe('frequencyLabel', () => {
   it('cae al string del tipo si no hay etiqueta', () => {
     expect(frequencyLabel({ frequency_type: 'custom' })).toBe('custom')
   })
+
+  it('una sola vez siempre muestra "Única vez" sin importar el value', () => {
+    expect(frequencyLabel({ frequency_type: 'once', frequency_value: 1 })).toBe('Única vez')
+    expect(frequencyLabel({ frequency_type: 'once', frequency_value: 5 })).toBe('Única vez')
+  })
 })
 
 describe('constantes de frecuencia', () => {
-  it('FREQUENCY_LABELS tiene las 4 frecuencias', () => {
-    expect(Object.keys(FREQUENCY_LABELS)).toEqual(['daily', 'weekly', 'biweekly', 'monthly'])
+  it('FREQUENCY_LABELS incluye las frecuencias recurrentes y la de una sola vez', () => {
+    expect(Object.keys(FREQUENCY_LABELS)).toEqual(['daily', 'weekly', 'biweekly', 'monthly', 'once'])
   })
 
   it('FREQUENCY_DEFAULTS refleja dias correctos', () => {
-    expect(FREQUENCY_DEFAULTS).toEqual({ daily: 1, weekly: 7, biweekly: 14, monthly: 30 })
+    expect(FREQUENCY_DEFAULTS).toEqual({ daily: 1, weekly: 7, biweekly: 14, monthly: 30, once: 1 })
   })
 })
 
