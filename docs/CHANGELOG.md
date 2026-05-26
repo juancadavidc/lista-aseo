@@ -8,6 +8,17 @@
 
 ## [Fase 2] — Experiencias Agénticas
 
+### 2026-05-26 — UI: Navbar y menú móvil "luxury hogar"
+- **Visión** — refinamiento del header y drawer lateral para elevar la percepción de marca de "app utilitaria" a "concierge del hogar". Prepara el terreno para los tiers de pago de Fase 3: si la app se ve premium, justifica el precio.
+- **Header** — botón hamburguesa pasó de `border + fondo blanco` (parecía input) a **ghost button** con stroke fino (1.6px) y barra inferior corta para un trazo editorial. El logo card mantiene los colores moss pero gana degradado más profundo (`#7aa870 → #385c32`) con inner highlight + sombra sutil. El título "Perlato" ahora viene acompañado de un **saludo dinámico** ("Buenas tardes, Juan") en micro tipografía body con tracking amplio, dependiente de la hora y del nombre de la sesión.
+- **Drawer** — tres bloques con jerarquía:
+  - **Brand row** — logo casa + nombre + cerrar.
+  - **Welcome card** — avatar grande (48px) con borde de color del perfil, saludo en eyebrow y primer nombre en `font-display` (DM Serif Display). Convierte el menú en un saludo personalizado, no una lista de links.
+  - **Nav agrupada** — items reorganizados en tres secciones con micro-headers en uppercase: *Día a día* (Tareas, Stats), *Inventario* (Productos, Plantas, Compras), *Configuración* (Admin, Casa). Cada item gana un **icono lineal fino** (stroke 1.6) a la izquierda; el item activo conserva la barra acento + fondo elevado + sombra `card`. Fondo del drawer con degradado vertical sutil (`surface-card → surface-base`) y sombra lateral más rica.
+- **CSS** — dos utilidades nuevas en `index.css`: `.nav-ghost-btn` (hover transparente sobre `bark-200`) y `.nav-item` (hover para items inactivos), sin tocar tokens del design system.
+- **Sin cambios de navegación** — rutas, tap targets (>= 44px), aria labels y `ESC`/click-out preservados. Build de Vite verde, frontend 163/163.
+- Archivos: `frontend/src/components/Layout.jsx`, `frontend/src/index.css`.
+
 ### 2026-05-24 — UI: "Única vez" integrada a la grilla de frecuencias
 - **Consistencia visual** — la opción "Única vez" dejó de ser un banner ancho separado y ahora es un recuadro igual a las frecuencias recurrentes, dentro del mismo grid (ahora de 5 columnas: Diario/Semanal/Quincenal/Mensual/Única vez). Rompía con el patrón de selección del resto.
 - **Icono propio** — pasó de `✅` (se confundía con "completado") a `🏁` (bandera de meta: se completa y se archiva).
