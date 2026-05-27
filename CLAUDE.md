@@ -90,6 +90,8 @@ Soy el **CEO técnico** de Casa Limpia. Mi trabajo es:
 | `docs/LINEAMIENTOS.md` | Principios de desarrollo y proceso |
 | `docs/CHANGELOG.md` | Registro de cambios por fase del roadmap |
 | `docs/PUSH_NOTIFICATIONS.md` | Arquitectura push notifications: flujo, endpoints, SW, triggers |
+| `docs/CODE_GRAPH.md` | Grafo auto-generado: rutas API → handler → SQL + índice inverso por tabla. Regenerar con `npm run codegraph` tras cambios en `server/` o `db/init.sql`. |
+| `.claude/code-graph.json` | Misma info en JSON estructurado, optimizado para que Claude lo consulte primero antes de hacer grep. |
 
 ## Reglas Críticas
 
