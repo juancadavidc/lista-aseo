@@ -4,6 +4,13 @@
 
 set -e
 
+# Regenerar code graph si los staged tocan server/, schema o el script
+if git diff --cached --name-only --diff-filter=ACMR | grep -qE '^(server/|db/init\.sql$|scripts/codegraph\.js$)'; then
+  echo "→ Pre-commit: regenerando code graph"
+  npm run codegraph --silent
+  git add .claude/code-graph.json docs/CODE_GRAPH.md
+fi
+
 echo "→ Pre-commit: npm test (frontend + server)"
 npm test
 

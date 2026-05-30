@@ -2,6 +2,7 @@
   "name": "casa-limpia-root",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Orquestacion de scripts y hooks para frontend + server",
   "scripts": {
     "install:all": "npm --prefix frontend install && npm --prefix server install",
@@ -9,6 +10,7 @@
     "test:coverage": "npm --prefix server run test:coverage && npm --prefix frontend run test:coverage",
     "build": "npm --prefix frontend run build",
     "ci": "npm test && npm run build",
+    "codegraph": "node scripts/codegraph.js",
     "prepare": "husky"
   },
   "devDependencies": {
