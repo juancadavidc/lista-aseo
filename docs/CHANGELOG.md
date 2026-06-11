@@ -2,7 +2,21 @@
 
 > Este archivo se actualiza en cada iteración para rastrear el progreso contra el [Roadmap de Visión](../CLAUDE.md#roadmap-de-visión).
 
-## Estado Actual: Fase 0 (MVP) — COMPLETADA | Fase 1 — COMPLETADA | Fase 2 — EN PROGRESO
+## Estado Actual: Fase 0 (MVP) — COMPLETADA | Fase 1 — COMPLETADA | Fase 2 — EN PROGRESO | Fase 3 — INICIADA (gestión de personal)
+
+---
+
+## [Fase 3] — Monetización
+
+### 2026-06-11 — Rol "externo": marca de llegada + fecha heredada por las tareas
+- **Visión** — primera pieza del caso "hogares con servicio doméstico" (Tier Pro de la Fase 3). Permite que el personal de aseo registre su trabajo sin romper los contadores, base para la futura gestión y reportes de personal.
+- **Rol como flag de app** — se añadió `member_type` (`'regular'|'externo'`, default `'regular'`) a `house_member_profiles` en vez de tocar los roles nativos de better-auth, para no arriesgar el login. El externo sigue siendo `member` (no puede crear/editar/borrar tareas), pero gana flujo de visita y ve un menú reducido. `requireHouse` ahora resuelve `member_type` junto al `role` y lo expone en `req.house.memberType`.
+- **Marca de llegada (visitas)** — nueva tabla `visits` (`organization_id`, `user_id`, `visited_on DATE`). `POST /api/visits` (solo externo) registra la llegada con fecha por defecto hoy, editable a días pasados y **validada contra `CURRENT_DATE` para rechazar fechas futuras**. `GET /api/visits/active` devuelve la última visita del usuario en la casa.
+- **Fecha heredada, nunca posterior a la visita** — al completar una tarea, si el miembro es externo el backend ignora la fecha del cliente y usa la de su última visita (mediodía UTC del día, topado al momento actual). Si no marcó llegada, responde `400 "Marca tu llegada antes de registrar tareas"`. Así, cuando registran las tareas el día después, los contadores (`isTaskPending`, stats por `DATE(completed_at)`) no se corren.
+- **Gestión desde Configuración** — `PATCH /api/houses/members/:userId/type` (owner/admin) marca/desmarca a un miembro como externo (no permite cambiar al dueño). En `HouseSettings` cada miembro no-dueño gana un toggle "Externo" con badge clay; el resto de miembros muestra el badge si aplica.
+- **Frontend del externo** — `Home` detecta su `member_type` y muestra el `ArrivalBanner` (marcar/ajustar fecha de visita, resumen "Hoy/Ayer/Hace N días") y bloquea el marcado con un aviso si aún no marcó llegada. `Layout` reduce el menú a solo *Tareas* y `HouseSettings` oculta el selector de pantalla de inicio para el externo.
+- **Tests** — backend 71/71 (nuevo caso de `member_type` en `requireHouse`), frontend 163/163, build de Vite verde (434 kB). Code graph regenerado.
+- Archivos: `db/init.sql`, `server/index.js`, `server/lib/middleware.js`, `server/lib/middleware.test.js`, `frontend/src/lib/api.js`, `frontend/src/pages/Home.jsx`, `frontend/src/components/ArrivalBanner.jsx` (nuevo), `frontend/src/components/Layout.jsx`, `frontend/src/pages/HouseSettings.jsx`.
 
 ---
 

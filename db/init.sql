@@ -85,9 +85,22 @@ CREATE TABLE IF NOT EXISTS house_member_profiles (
     avatar          TEXT NOT NULL DEFAULT '🧑',
     color           TEXT NOT NULL DEFAULT '#6a9960',
     home_screen     TEXT NOT NULL DEFAULT 'tasks',
+    member_type     TEXT NOT NULL DEFAULT 'regular',
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, organization_id)
 );
+
+-- Visitas del personal externo: marca de llegada con la fecha real de la visita.
+-- Las tareas que complete un externo heredan esta fecha (nunca posterior a la visita).
+CREATE TABLE IF NOT EXISTS visits (
+    id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    organization_id TEXT NOT NULL,
+    user_id         TEXT NOT NULL,
+    visited_on      DATE NOT NULL,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_visits_org_user ON visits(organization_id, user_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS super_admins (
     id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
