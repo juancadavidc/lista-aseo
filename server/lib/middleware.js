@@ -45,12 +45,16 @@ export function createRequireHouse(pool) {
 
     try {
       const { rows } = await pool.query(
-        'SELECT * FROM "member" WHERE "userId" = $1 AND "organizationId" = $2',
+        `SELECT m.role, COALESCE(p.member_type, 'regular') AS member_type
+         FROM "member" m
+         LEFT JOIN house_member_profiles p
+           ON p.user_id = m."userId" AND p.organization_id = m."organizationId"
+         WHERE "userId" = $1 AND "organizationId" = $2`,
         [req.user.id, houseId]
       )
       if (rows.length === 0) return res.status(403).json({ error: 'No eres miembro de esta casa' })
 
-      req.house = { id: houseId, role: rows[0].role }
+      req.house = { id: houseId, role: rows[0].role, memberType: rows[0].member_type }
       next()
     } catch (err) {
       return res.status(500).json({ error: err.message })

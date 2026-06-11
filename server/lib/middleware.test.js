@@ -144,6 +144,16 @@ describe('createRequireHouse', () => {
     expect(next).toHaveBeenCalledOnce()
   })
 
+  it('expone member_type en req.house (rol externo)', async () => {
+    req.headers['x-house-id'] = 'house-1'
+    pool.query.mockResolvedValue({ rows: [{ role: 'member', member_type: 'externo' }] })
+
+    await createRequireHouse(pool)(req, res, next)
+
+    expect(req.house).toEqual({ id: 'house-1', role: 'member', memberType: 'externo' })
+    expect(next).toHaveBeenCalledOnce()
+  })
+
   it('filtra SIEMPRE por userId y organizationId (multi-tenant)', async () => {
     req.headers['x-house-id'] = 'house-42'
     pool.query.mockResolvedValue({ rows: [{ role: 'member' }] })

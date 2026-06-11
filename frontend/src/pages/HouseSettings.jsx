@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { authClient } from '../lib/auth'
 import { getActiveHouse, setActiveHouse, clearActiveHouse, AVATARS, COLORS } from '../lib/house'
-import { fetchHouseMembers, fetchHouseProfile, updateHouseProfile, fetchVapidKey, subscribePush, unsubscribePush, fetchPushStatus, deleteHouse, fetchInvitations, deleteInvitation, renewInvitation } from '../lib/api'
+import { fetchHouseMembers, fetchHouseProfile, updateHouseProfile, fetchVapidKey, subscribePush, unsubscribePush, fetchPushStatus, deleteHouse, fetchInvitations, deleteInvitation, renewInvitation, setMemberType } from '../lib/api'
 import { HOME_SCREENS, setStoredHomeScreen, DEFAULT_HOME_SCREEN } from '../lib/homeScreen'
 
 export default function HouseSettings() {
@@ -12,6 +12,8 @@ export default function HouseSettings() {
   const [members, setMembers] = useState([])
   const [myProfile, setMyProfile] = useState(null)
   const [myRole, setMyRole] = useState('member')
+  const [myMemberType, setMyMemberType] = useState('regular')
+  const [togglingTypeId, setTogglingTypeId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('member')
@@ -49,6 +51,7 @@ export default function HouseSettings() {
       const me = membersData.find(m => m.userId === session?.user?.id)
       if (me) {
         setMyRole(me.role)
+        setMyMemberType(me.member_type || 'regular')
         if (me.role === 'owner' || me.role === 'admin') {
           loadInvitations()
         }
@@ -207,6 +210,20 @@ export default function HouseSettings() {
     } else {
       setRemovingId(userId)
       setTimeout(() => setRemovingId(null), 3000)
+    }
+  }
+
+  async function handleToggleExterno(userId, currentType) {
+    const next = currentType === 'externo' ? 'regular' : 'externo'
+    setTogglingTypeId(userId)
+    try {
+      await setMemberType(userId, next)
+      setMembers(prev => prev.map(m => m.userId === userId ? { ...m, member_type: next } : m))
+      showToast(next === 'externo' ? 'Marcado como externo' : 'Marcado como regular')
+    } catch (err) {
+      showToast(err.message || 'Error al cambiar el tipo', 'error')
+    } finally {
+      setTogglingTypeId(null)
     }
   }
 
@@ -421,6 +438,7 @@ export default function HouseSettings() {
       </div>
 
       {/* Home screen preference */}
+      {myMemberType !== 'externo' && (
       <div className="mb-6">
         <h3 className="font-display text-lg mb-1" style={{ color: 'var(--bark-700)' }}>
           Pantalla de inicio
@@ -453,6 +471,7 @@ export default function HouseSettings() {
           })}
         </div>
       </div>
+      )}
 
       {/* Members */}
       <div className="mb-6">
@@ -487,6 +506,27 @@ export default function HouseSettings() {
               >
                 {roleLabel(m.role)}
               </span>
+              {isOwnerOrAdmin && m.userId !== session?.user?.id && m.role !== 'owner' ? (
+                <button
+                  onClick={() => handleToggleExterno(m.userId, m.member_type)}
+                  disabled={togglingTypeId === m.userId}
+                  className="px-2 py-1 rounded-lg text-[10px] font-body font-semibold flex-shrink-0 transition-all active:scale-95 disabled:opacity-50"
+                  style={m.member_type === 'externo'
+                    ? { background: 'rgba(184,90,58,0.12)', color: 'var(--clay-500)' }
+                    : { background: 'var(--surface-elevated)', color: 'var(--bark-400)', border: '1px solid rgba(196,184,166,0.3)' }}
+                >
+                  {togglingTypeId === m.userId ? '...' : (m.member_type === 'externo' ? 'Externo ✓' : 'Externo')}
+                </button>
+              ) : (
+                m.member_type === 'externo' && (
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] font-body font-semibold flex-shrink-0"
+                    style={{ background: 'rgba(184,90,58,0.12)', color: 'var(--clay-500)' }}
+                  >
+                    Externo
+                  </span>
+                )
+              )}
               {isOwnerOrAdmin && m.userId !== session?.user?.id && m.role !== 'owner' && (
                 <button
                   onClick={() => handleRemoveMember(m.userId)}

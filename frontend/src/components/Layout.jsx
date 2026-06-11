@@ -99,6 +99,14 @@ export default function Layout() {
   const firstName = (session?.user?.name || '').trim().split(/\s+/)[0]
   const greeting = getGreeting()
 
+  // El rol externo solo navega a Tareas; el resto del menú se oculta.
+  const isExterno = profile?.member_type === 'externo'
+  const visibleSections = isExterno
+    ? navSections
+        .map(s => ({ ...s, items: s.items.filter(i => i.to === '/tasks') }))
+        .filter(s => s.items.length > 0)
+    : navSections
+
   useEffect(() => {
     fetchHouseProfile().then(p => {
       setProfile(p)
@@ -370,7 +378,7 @@ export default function Layout() {
 
             {/* Nav sections */}
             <nav className="flex-1 overflow-y-auto py-3 px-3">
-              {navSections.map((section, idx) => (
+              {visibleSections.map((section, idx) => (
                 <div key={section.title} className={idx > 0 ? 'mt-5' : ''}>
                   <div
                     className="px-3 mb-1.5 font-body text-[10px] font-semibold uppercase"

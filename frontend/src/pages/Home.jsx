@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { fetchPendingTasks, completeTask, overdueLabel, frequencyLabel, urgencyBucket } from '../lib/tasks'
+import { fetchHouseProfile, fetchActiveVisit } from '../lib/api'
 import TaskCard from '../components/TaskCard'
 import ProgressRing from '../components/ProgressRing'
 import SearchInput from '../components/SearchInput'
+import ArrivalBanner from '../components/ArrivalBanner'
 
 export default function Home() {
   const [tasks, setTasks] = useState([])
@@ -10,6 +12,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [query, setQuery] = useState('')
+  const [isExterno, setIsExterno] = useState(false)
+  const [visit, setVisit] = useState(null)
+  const [notice, setNotice] = useState(null)
 
   const loadTasks = useCallback(async () => {
     try {
@@ -34,9 +39,29 @@ export default function Home() {
 
   useEffect(() => { loadTasks() }, [loadTasks])
 
+  useEffect(() => {
+    let cancelled = false
+    fetchHouseProfile()
+      .then(p => {
+        if (cancelled) return
+        const externo = p?.member_type === 'externo'
+        setIsExterno(externo)
+        if (externo) return fetchActiveVisit().then(v => { if (!cancelled) setVisit(v) })
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
   const [completed, setCompleted] = useState(0)
 
   async function handleComplete(taskId) {
+    // El externo debe marcar su llegada antes de registrar tareas (la fecha de la
+    // visita es la que heredan las completaciones).
+    if (isExterno && !visit) {
+      setNotice('Marca tu llegada antes de registrar tareas.')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
     try {
       await completeTask(taskId)
       setCompleted(prev => prev + 1)
@@ -102,6 +127,24 @@ export default function Home() {
 
   return (
     <div className="fade-in">
+      {/* Marca de llegada para el rol externo */}
+      {isExterno && (
+        <ArrivalBanner
+          visit={visit}
+          onMarked={v => { setVisit(v); setNotice(null) }}
+        />
+      )}
+
+      {/* Aviso cuando falta marcar la llegada */}
+      {notice && (
+        <div
+          className="rounded-xl p-3 mb-5 font-body text-[13px] font-medium"
+          style={{ background: 'rgba(184,90,58,0.08)', border: '1px solid rgba(184,90,58,0.2)', color: 'var(--clay-500)' }}
+        >
+          {notice}
+        </div>
+      )}
+
       {/* Header with progress */}
       <div className="flex items-start justify-between mb-7">
         <div>

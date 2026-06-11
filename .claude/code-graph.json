@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-27T23:26:31.706Z",
+  "generatedAt": "2026-06-11T00:15:06.321Z",
   "sources": [
     "server/index.js",
     "server/auth.js",
@@ -251,6 +251,37 @@
           "type": "TEXT"
         },
         {
+          "name": "member_type",
+          "type": "TEXT"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ"
+        }
+      ],
+      "fks": [],
+      "hasOrgId": true,
+      "source": "db/init.sql"
+    },
+    "visits": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID"
+        },
+        {
+          "name": "organization_id",
+          "type": "TEXT"
+        },
+        {
+          "name": "user_id",
+          "type": "TEXT"
+        },
+        {
+          "name": "visited_on",
+          "type": "DATE"
+        },
+        {
           "name": "created_at",
           "type": "TIMESTAMPTZ"
         }
@@ -383,7 +414,7 @@
       ],
       "fks": [],
       "hasOrgId": true,
-      "source": "server/index.js:1450"
+      "source": "server/index.js:1562"
     }
   },
   "routes": [
@@ -523,7 +554,7 @@
           "line": 160,
           "client": "pool",
           "dynamic": false,
-          "sql": "SELECT m.\"userId\", m.role, m.\"createdAt\",\n             u.name, u.email,\n             COALESCE(p.avatar, '🧑') as avatar,\n             COALESCE(p.color, '#6a9960') as color\n      FROM \"member\" m\n      JOIN \"user\" u ON m.\"userId\" = u.id\n      LEFT JOIN house_member_profiles p ON p.user_id = m.\"userId\" AND p.organization_id = m.\"organizationId\"\n      WHERE m.\"organizationId\" = $1\n      ORDER BY m.\"createdAt\"",
+          "sql": "SELECT m.\"userId\", m.role, m.\"createdAt\",\n             u.name, u.email,\n             COALESCE(p.avatar, '🧑') as avatar,\n             COALESCE(p.color, '#6a9960') as color,\n             COALESCE(p.member_type, 'regular') as member_type\n      FROM \"member\" m\n      JOIN \"user\" u ON m.\"userId\" = u.id\n      LEFT JOIN house_member_profiles p ON p.user_id = m.\"userId\" AND p.organization_id = m.\"organizationId\"\n      WHERE m.\"organizationId\" = $1\n      ORDER BY m.\"createdAt\"",
           "op": "SELECT",
           "tables": [
             "member",
@@ -536,16 +567,51 @@
     },
     {
       "file": "server/index.js",
+      "method": "PATCH",
+      "path": "/api/houses/members/:userId/type",
+      "line": 181,
+      "middlewares": [
+        "requireAuth",
+        "requireHouse",
+        "requireRole('owner', 'admin')"
+      ],
+      "queries": [
+        {
+          "line": 188,
+          "client": "pool",
+          "dynamic": false,
+          "sql": "SELECT role FROM \"member\" WHERE \"userId\" = $1 AND \"organizationId\" = $2",
+          "op": "SELECT",
+          "tables": [
+            "member"
+          ],
+          "filtersByOrgId": true
+        },
+        {
+          "line": 195,
+          "client": "pool",
+          "dynamic": false,
+          "sql": "INSERT INTO house_member_profiles (user_id, organization_id, member_type)\n      VALUES ($1, $2, $3)\n      ON CONFLICT (user_id, organization_id)\n      DO UPDATE SET member_type = EXCLUDED.member_type",
+          "op": "INSERT",
+          "tables": [
+            "house_member_profiles"
+          ],
+          "filtersByOrgId": true
+        }
+      ]
+    },
+    {
+      "file": "server/index.js",
       "method": "GET",
       "path": "/api/houses/profile",
-      "line": 180,
+      "line": 210,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 182,
+          "line": 212,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT * FROM house_member_profiles WHERE user_id = $1 AND organization_id = $2",
@@ -561,14 +627,14 @@
       "file": "server/index.js",
       "method": "PUT",
       "path": "/api/houses/profile",
-      "line": 198,
+      "line": 229,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 204,
+          "line": 235,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT avatar, color, home_screen FROM house_member_profiles WHERE user_id = $1 AND organization_id = $2",
@@ -579,7 +645,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 212,
+          "line": 243,
           "client": "pool",
           "dynamic": false,
           "sql": "INSERT INTO house_member_profiles (user_id, organization_id, avatar, color, home_screen)\n      VALUES ($1, $2, $3, $4, $5)\n      ON CONFLICT (user_id, organization_id)\n      DO UPDATE SET avatar = EXCLUDED.avatar, color = EXCLUDED.color, home_screen = EXCLUDED.home_screen\n      RETURNING *",
@@ -595,7 +661,7 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/invitations",
-      "line": 226,
+      "line": 257,
       "middlewares": [
         "requireAuth",
         "requireHouse",
@@ -603,7 +669,7 @@
       ],
       "queries": [
         {
-          "line": 228,
+          "line": 259,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT i.id, i.email, i.role, i.status, i.\"expiresAt\", i.\"inviterId\",\n             u.name as inviter_name, u.email as inviter_email\n      FROM \"invitation\" i\n      LEFT JOIN \"user\" u ON u.id = i.\"inviterId\"\n      WHERE i.\"organizationId\" = $1 AND i.status = 'pending'\n      ORDER BY i.\"expiresAt\" DESC",
@@ -620,7 +686,7 @@
       "file": "server/index.js",
       "method": "DELETE",
       "path": "/api/invitations/:id",
-      "line": 243,
+      "line": 274,
       "middlewares": [
         "requireAuth",
         "requireHouse",
@@ -628,7 +694,7 @@
       ],
       "queries": [
         {
-          "line": 245,
+          "line": 276,
           "client": "pool",
           "dynamic": false,
           "sql": "DELETE FROM \"invitation\" WHERE id = $1 AND \"organizationId\" = $2 AND status = 'pending'",
@@ -644,7 +710,7 @@
       "file": "server/index.js",
       "method": "POST",
       "path": "/api/invitations/:id/renew",
-      "line": 259,
+      "line": 290,
       "middlewares": [
         "requireAuth",
         "requireHouse",
@@ -652,7 +718,7 @@
       ],
       "queries": [
         {
-          "line": 261,
+          "line": 292,
           "client": "pool",
           "dynamic": false,
           "sql": "UPDATE \"invitation\"\n       SET \"expiresAt\" = NOW() + INTERVAL '7 days'\n       WHERE id = $1 AND \"organizationId\" = $2 AND status = 'pending'\n       RETURNING id, email, role, status, \"expiresAt\"",
@@ -668,13 +734,13 @@
       "file": "server/index.js",
       "method": "DELETE",
       "path": "/api/houses/:id",
-      "line": 278,
+      "line": 309,
       "middlewares": [
         "requireAuth"
       ],
       "queries": [
         {
-          "line": 285,
+          "line": 316,
           "client": "client",
           "dynamic": false,
           "sql": "SELECT role FROM \"member\" WHERE \"userId\" = $1 AND \"organizationId\" = $2",
@@ -685,7 +751,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 296,
+          "line": 327,
           "client": "client",
           "dynamic": false,
           "sql": "BEGIN",
@@ -694,7 +760,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 298,
+          "line": 329,
           "client": "client",
           "dynamic": false,
           "sql": "DELETE FROM tasks WHERE organization_id = $1",
@@ -705,7 +771,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 299,
+          "line": 330,
           "client": "client",
           "dynamic": false,
           "sql": "DELETE FROM products WHERE organization_id = $1",
@@ -716,7 +782,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 300,
+          "line": 331,
           "client": "client",
           "dynamic": false,
           "sql": "DELETE FROM shopping_items WHERE organization_id = $1",
@@ -727,7 +793,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 301,
+          "line": 332,
           "client": "client",
           "dynamic": false,
           "sql": "DELETE FROM shopping_categories WHERE organization_id = $1",
@@ -738,7 +804,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 302,
+          "line": 333,
           "client": "client",
           "dynamic": false,
           "sql": "DELETE FROM house_member_profiles WHERE organization_id = $1",
@@ -749,7 +815,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 303,
+          "line": 334,
           "client": "client",
           "dynamic": false,
           "sql": "DELETE FROM push_subscriptions WHERE organization_id = $1",
@@ -760,7 +826,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 304,
+          "line": 335,
           "client": "client",
           "dynamic": false,
           "sql": "DELETE FROM plant_watering_history WHERE plant_id IN (SELECT id FROM plants WHERE organization_id = $1)",
@@ -772,7 +838,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 308,
+          "line": 339,
           "client": "client",
           "dynamic": false,
           "sql": "DELETE FROM plants WHERE organization_id = $1",
@@ -783,7 +849,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 310,
+          "line": 341,
           "client": "client",
           "dynamic": false,
           "sql": "DELETE FROM \"invitation\" WHERE \"organizationId\" = $1",
@@ -794,7 +860,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 311,
+          "line": 342,
           "client": "client",
           "dynamic": false,
           "sql": "DELETE FROM \"member\" WHERE \"organizationId\" = $1",
@@ -805,7 +871,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 312,
+          "line": 343,
           "client": "client",
           "dynamic": false,
           "sql": "DELETE FROM \"organization\" WHERE id = $1",
@@ -816,7 +882,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 313,
+          "line": 344,
           "client": "client",
           "dynamic": false,
           "sql": "COMMIT",
@@ -825,7 +891,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 317,
+          "line": 348,
           "client": "client",
           "dynamic": false,
           "sql": "ROLLBACK",
@@ -839,7 +905,7 @@
       "file": "server/index.js",
       "method": "POST",
       "path": "/api/houses/seed",
-      "line": 325,
+      "line": 356,
       "middlewares": [
         "requireAuth",
         "requireHouse",
@@ -847,7 +913,7 @@
       ],
       "queries": [
         {
-          "line": 332,
+          "line": 363,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT COUNT(*) as c FROM tasks WHERE organization_id = $1",
@@ -858,7 +924,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 368,
+          "line": 399,
           "client": "pool",
           "dynamic": false,
           "sql": "INSERT INTO tasks (name, description, frequency_type, frequency_value, is_active, organization_id) VALUES ${values}",
@@ -869,7 +935,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 404,
+          "line": 435,
           "client": "pool",
           "dynamic": false,
           "sql": "INSERT INTO tasks (name, description, frequency_type, frequency_value, is_active, organization_id) VALUES ${values}",
@@ -880,7 +946,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 460,
+          "line": 491,
           "client": "pool",
           "dynamic": false,
           "sql": "INSERT INTO products (name, category, reminder_frequency_days, is_out_of_stock, organization_id) VALUES ${pValues}",
@@ -896,11 +962,11 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/health",
-      "line": 473,
+      "line": 504,
       "middlewares": [],
       "queries": [
         {
-          "line": 475,
+          "line": 506,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT 1",
@@ -914,7 +980,7 @@
       "file": "server/index.js",
       "method": "POST",
       "path": "/api/uploads",
-      "line": 484,
+      "line": 515,
       "middlewares": [
         "requireAuth",
         "upload.single('image')"
@@ -925,7 +991,7 @@
       "file": "server/index.js",
       "method": "DELETE",
       "path": "/api/uploads/:filename",
-      "line": 489,
+      "line": 520,
       "middlewares": [
         "requireAuth"
       ],
@@ -935,14 +1001,14 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/tasks/pending",
-      "line": 501,
+      "line": 532,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 503,
+          "line": 534,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT t.*, c.last_completed_at\n      FROM tasks t\n      LEFT JOIN (\n        SELECT task_id, MAX(completed_at) AS last_completed_at\n        FROM completions\n        GROUP BY task_id\n      ) c ON t.id = c.task_id\n      WHERE t.is_active = true\n        AND t.organization_id = $1\n        AND (\n          c.last_completed_at IS NULL\n          OR (t.frequency_type <> 'once' AND NOW() >= c.last_completed_at + (t.frequency_value * INTERVAL '1 day'))\n          OR (t.last_reset_at IS NOT NULL AND t.last_reset_at > c.last_completed_at)\n        )\n      ORDER BY t.name",
@@ -959,14 +1025,14 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/tasks",
-      "line": 527,
+      "line": 558,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 533,
+          "line": 564,
           "client": "pool",
           "dynamic": true,
           "sql": null,
@@ -980,7 +1046,7 @@
       "file": "server/index.js",
       "method": "POST",
       "path": "/api/tasks",
-      "line": 541,
+      "line": 572,
       "middlewares": [
         "requireAuth",
         "requireHouse",
@@ -988,7 +1054,7 @@
       ],
       "queries": [
         {
-          "line": 544,
+          "line": 575,
           "client": "pool",
           "dynamic": false,
           "sql": "INSERT INTO tasks (name, description, frequency_type, frequency_value, is_active, product_name, product_image, organization_id)\n       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
@@ -1004,7 +1070,7 @@
       "file": "server/index.js",
       "method": "PATCH",
       "path": "/api/tasks/:id",
-      "line": 556,
+      "line": 587,
       "middlewares": [
         "requireAuth",
         "requireHouse",
@@ -1012,7 +1078,7 @@
       ],
       "queries": [
         {
-          "line": 566,
+          "line": 597,
           "client": "pool",
           "dynamic": true,
           "sql": null,
@@ -1026,7 +1092,7 @@
       "file": "server/index.js",
       "method": "DELETE",
       "path": "/api/tasks/:id",
-      "line": 575,
+      "line": 606,
       "middlewares": [
         "requireAuth",
         "requireHouse",
@@ -1034,7 +1100,7 @@
       ],
       "queries": [
         {
-          "line": 578,
+          "line": 609,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT product_image FROM tasks WHERE id = $1 AND organization_id = $2",
@@ -1045,7 +1111,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 585,
+          "line": 616,
           "client": "pool",
           "dynamic": false,
           "sql": "DELETE FROM completions WHERE task_id = $1",
@@ -1056,7 +1122,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 586,
+          "line": 617,
           "client": "pool",
           "dynamic": false,
           "sql": "DELETE FROM tasks WHERE id = $1 AND organization_id = $2",
@@ -1072,14 +1138,14 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/completions",
-      "line": 596,
+      "line": 627,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 598,
+          "line": 629,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT c.task_id, c.completed_at, c.completed_by, c.user_id\n      FROM completions c\n      JOIN tasks t ON c.task_id = t.id\n      WHERE t.organization_id = $1\n      ORDER BY c.completed_at DESC",
@@ -1096,14 +1162,14 @@
       "file": "server/index.js",
       "method": "POST",
       "path": "/api/completions",
-      "line": 612,
+      "line": 643,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 616,
+          "line": 647,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT id, name, frequency_type FROM tasks WHERE id = $1 AND organization_id = $2",
@@ -1114,7 +1180,18 @@
           "filtersByOrgId": true
         },
         {
-          "line": 621,
+          "line": 656,
+          "client": "pool",
+          "dynamic": false,
+          "sql": "SELECT to_char(visited_on, 'YYYY-MM-DD') AS d\n        FROM visits\n        WHERE organization_id = $1 AND user_id = $2\n        ORDER BY created_at DESC\n        LIMIT 1",
+          "op": "SELECT",
+          "tables": [
+            "visits"
+          ],
+          "filtersByOrgId": true
+        },
+        {
+          "line": 673,
           "client": "pool",
           "dynamic": false,
           "sql": "INSERT INTO completions (task_id, completed_at, completed_by, user_id) VALUES ($1, $2, $3, $4) RETURNING *",
@@ -1125,7 +1202,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 628,
+          "line": 680,
           "client": "pool",
           "dynamic": false,
           "sql": "UPDATE tasks SET is_active = false WHERE id = $1 AND organization_id = $2",
@@ -1139,9 +1216,64 @@
     },
     {
       "file": "server/index.js",
+      "method": "GET",
+      "path": "/api/visits/active",
+      "line": 706,
+      "middlewares": [
+        "requireAuth",
+        "requireHouse"
+      ],
+      "queries": [
+        {
+          "line": 708,
+          "client": "pool",
+          "dynamic": false,
+          "sql": "SELECT id, to_char(visited_on, 'YYYY-MM-DD') AS visited_on, created_at\n      FROM visits\n      WHERE organization_id = $1 AND user_id = $2\n      ORDER BY created_at DESC\n      LIMIT 1",
+          "op": "SELECT",
+          "tables": [
+            "visits"
+          ],
+          "filtersByOrgId": true
+        }
+      ]
+    },
+    {
+      "file": "server/index.js",
+      "method": "POST",
+      "path": "/api/visits",
+      "line": 722,
+      "middlewares": [
+        "requireAuth",
+        "requireHouse"
+      ],
+      "queries": [
+        {
+          "line": 731,
+          "client": "pool",
+          "dynamic": false,
+          "sql": "SELECT ($1::date > CURRENT_DATE) AS future",
+          "op": "SELECT",
+          "tables": [],
+          "filtersByOrgId": false
+        },
+        {
+          "line": 735,
+          "client": "pool",
+          "dynamic": false,
+          "sql": "INSERT INTO visits (organization_id, user_id, visited_on)\n      VALUES ($1, $2, $3)\n      RETURNING id, to_char(visited_on, 'YYYY-MM-DD') AS visited_on, created_at",
+          "op": "INSERT",
+          "tables": [
+            "visits"
+          ],
+          "filtersByOrgId": true
+        }
+      ]
+    },
+    {
+      "file": "server/index.js",
       "method": "POST",
       "path": "/api/tasks/:id/reset",
-      "line": 651,
+      "line": 748,
       "middlewares": [
         "requireAuth",
         "requireHouse",
@@ -1149,7 +1281,7 @@
       ],
       "queries": [
         {
-          "line": 654,
+          "line": 751,
           "client": "pool",
           "dynamic": false,
           "sql": "UPDATE tasks SET last_reset_at = NOW() WHERE id = $1 AND organization_id = $2 RETURNING *",
@@ -1165,14 +1297,14 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/completions/:taskId/history",
-      "line": 666,
+      "line": 763,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 669,
+          "line": 766,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT c.* FROM completions c\n      JOIN tasks t ON c.task_id = t.id\n      WHERE c.task_id = $1 AND t.organization_id = $2\n      ORDER BY c.completed_at DESC LIMIT $3",
@@ -1189,14 +1321,14 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/products",
-      "line": 684,
+      "line": 781,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 700,
+          "line": 797,
           "client": "pool",
           "dynamic": true,
           "sql": null,
@@ -1210,14 +1342,14 @@
       "file": "server/index.js",
       "method": "POST",
       "path": "/api/products",
-      "line": 708,
+      "line": 805,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 712,
+          "line": 809,
           "client": "pool",
           "dynamic": false,
           "sql": "INSERT INTO products (name, category, reminder_frequency_days, is_out_of_stock, units, organization_id)\n       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
@@ -1233,14 +1365,14 @@
       "file": "server/index.js",
       "method": "PATCH",
       "path": "/api/products/:id",
-      "line": 724,
+      "line": 821,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 740,
+          "line": 837,
           "client": "pool",
           "dynamic": true,
           "sql": null,
@@ -1254,14 +1386,14 @@
       "file": "server/index.js",
       "method": "POST",
       "path": "/api/products/:id/purchase",
-      "line": 749,
+      "line": 846,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 752,
+          "line": 849,
           "client": "pool",
           "dynamic": false,
           "sql": "UPDATE products\n       SET last_purchased_at = NOW(), is_out_of_stock = false, last_out_of_stock_at = NULL\n       WHERE id = $1 AND organization_id = $2 RETURNING *",
@@ -1277,14 +1409,14 @@
       "file": "server/index.js",
       "method": "DELETE",
       "path": "/api/products/:id",
-      "line": 766,
+      "line": 863,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 769,
+          "line": 866,
           "client": "pool",
           "dynamic": false,
           "sql": "DELETE FROM products WHERE id = $1 AND organization_id = $2",
@@ -1300,14 +1432,14 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/shopping-categories",
-      "line": 779,
+      "line": 876,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 781,
+          "line": 878,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT * FROM shopping_categories WHERE organization_id = $1 ORDER BY sort_order, name",
@@ -1323,7 +1455,7 @@
       "file": "server/index.js",
       "method": "POST",
       "path": "/api/shopping-categories",
-      "line": 792,
+      "line": 889,
       "middlewares": [
         "requireAuth",
         "requireHouse",
@@ -1331,7 +1463,7 @@
       ],
       "queries": [
         {
-          "line": 797,
+          "line": 894,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT COALESCE(MAX(sort_order), -1) + 1 as next_order FROM shopping_categories WHERE organization_id = $1",
@@ -1342,7 +1474,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 801,
+          "line": 898,
           "client": "pool",
           "dynamic": false,
           "sql": "INSERT INTO shopping_categories (name, emoji, sort_order, organization_id) VALUES ($1, $2, $3, $4) RETURNING *",
@@ -1358,7 +1490,7 @@
       "file": "server/index.js",
       "method": "PATCH",
       "path": "/api/shopping-categories/:id",
-      "line": 812,
+      "line": 909,
       "middlewares": [
         "requireAuth",
         "requireHouse",
@@ -1366,7 +1498,7 @@
       ],
       "queries": [
         {
-          "line": 822,
+          "line": 919,
           "client": "pool",
           "dynamic": true,
           "sql": null,
@@ -1380,7 +1512,7 @@
       "file": "server/index.js",
       "method": "DELETE",
       "path": "/api/shopping-categories/:id",
-      "line": 831,
+      "line": 928,
       "middlewares": [
         "requireAuth",
         "requireHouse",
@@ -1388,7 +1520,7 @@
       ],
       "queries": [
         {
-          "line": 834,
+          "line": 931,
           "client": "pool",
           "dynamic": false,
           "sql": "DELETE FROM shopping_categories WHERE id = $1 AND organization_id = $2",
@@ -1404,14 +1536,14 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/shopping-items",
-      "line": 844,
+      "line": 941,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 847,
+          "line": 944,
           "client": "pool",
           "dynamic": false,
           "sql": "UPDATE shopping_items\n       SET archived_at = NOW()\n       WHERE organization_id = $1\n         AND is_purchased = true\n         AND archived_at IS NULL\n         AND purchased_at IS NOT NULL\n         AND purchased_at < NOW() - ($2 || ' days')::INTERVAL",
@@ -1422,7 +1554,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 858,
+          "line": 955,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT si.*, sc.name as category_name, sc.emoji as category_emoji\n      FROM shopping_items si\n      LEFT JOIN shopping_categories sc ON si.category_id = sc.id\n      WHERE si.organization_id = $1 AND si.archived_at IS NULL\n      ORDER BY si.is_purchased, sc.sort_order NULLS LAST, si.created_at DESC",
@@ -1439,14 +1571,14 @@
       "file": "server/index.js",
       "method": "POST",
       "path": "/api/shopping-items",
-      "line": 872,
+      "line": 969,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 876,
+          "line": 973,
           "client": "pool",
           "dynamic": false,
           "sql": "INSERT INTO shopping_items (name, note, added_by, category_id, organization_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
@@ -1462,14 +1594,14 @@
       "file": "server/index.js",
       "method": "PATCH",
       "path": "/api/shopping-items/:id",
-      "line": 887,
+      "line": 984,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 909,
+          "line": 1006,
           "client": "pool",
           "dynamic": true,
           "sql": null,
@@ -1483,14 +1615,14 @@
       "file": "server/index.js",
       "method": "DELETE",
       "path": "/api/shopping-items/clear-purchased",
-      "line": 919,
+      "line": 1016,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 922,
+          "line": 1019,
           "client": "pool",
           "dynamic": false,
           "sql": "UPDATE shopping_items\n       SET purchased_at = COALESCE(purchased_at, NOW()),\n           archived_at = NOW()\n       WHERE is_purchased = true\n         AND archived_at IS NULL\n         AND organization_id = $1",
@@ -1506,14 +1638,14 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/shopping-items/history",
-      "line": 939,
+      "line": 1036,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 942,
+          "line": 1039,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT si.*, sc.name as category_name, sc.emoji as category_emoji\n      FROM shopping_items si\n      LEFT JOIN shopping_categories sc ON si.category_id = sc.id\n      WHERE si.organization_id = $1 AND si.archived_at IS NOT NULL\n      ORDER BY si.archived_at DESC, si.purchased_at DESC NULLS LAST\n      LIMIT $2",
@@ -1530,14 +1662,14 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/shopping-items/recommendations",
-      "line": 958,
+      "line": 1055,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 960,
+          "line": 1057,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT si.id, si.name, si.category_id, si.purchased_at,\n             sc.name as category_name, sc.emoji as category_emoji\n      FROM shopping_items si\n      LEFT JOIN shopping_categories sc ON si.category_id = sc.id\n      WHERE si.organization_id = $1\n        AND si.archived_at IS NOT NULL\n        AND si.purchased_at IS NOT NULL\n      ORDER BY si.purchased_at DESC",
@@ -1549,7 +1681,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 971,
+          "line": 1068,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT name FROM shopping_items\n       WHERE organization_id = $1 AND archived_at IS NULL",
@@ -1565,14 +1697,14 @@
       "file": "server/index.js",
       "method": "DELETE",
       "path": "/api/shopping-items/:id",
-      "line": 985,
+      "line": 1082,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 988,
+          "line": 1085,
           "client": "pool",
           "dynamic": false,
           "sql": "DELETE FROM shopping_items WHERE id = $1 AND organization_id = $2",
@@ -1588,14 +1720,14 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/plants",
-      "line": 998,
+      "line": 1095,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 1000,
+          "line": 1097,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT * FROM plants WHERE organization_id = $1 ORDER BY name",
@@ -1611,14 +1743,14 @@
       "file": "server/index.js",
       "method": "POST",
       "path": "/api/plants",
-      "line": 1011,
+      "line": 1108,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 1016,
+          "line": 1113,
           "client": "pool",
           "dynamic": false,
           "sql": "INSERT INTO plants (name, notes, watering_frequency_days, organization_id)\n       VALUES ($1, $2, $3, $4) RETURNING *",
@@ -1634,14 +1766,14 @@
       "file": "server/index.js",
       "method": "PATCH",
       "path": "/api/plants/:id",
-      "line": 1028,
+      "line": 1125,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 1035,
+          "line": 1132,
           "client": "pool",
           "dynamic": false,
           "sql": "UPDATE plants SET name = $3, notes = $4, watering_frequency_days = $5\n       WHERE id = $1 AND organization_id = $2 RETURNING *",
@@ -1657,14 +1789,14 @@
       "file": "server/index.js",
       "method": "DELETE",
       "path": "/api/plants/:id",
-      "line": 1048,
+      "line": 1145,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 1051,
+          "line": 1148,
           "client": "pool",
           "dynamic": false,
           "sql": "DELETE FROM plants WHERE id = $1 AND organization_id = $2",
@@ -1680,14 +1812,14 @@
       "file": "server/index.js",
       "method": "POST",
       "path": "/api/plants/:id/water",
-      "line": 1063,
+      "line": 1160,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 1067,
+          "line": 1164,
           "client": "client",
           "dynamic": false,
           "sql": "SELECT id, name FROM plants WHERE id = $1 AND organization_id = $2",
@@ -1698,7 +1830,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1073,
+          "line": 1170,
           "client": "client",
           "dynamic": false,
           "sql": "BEGIN",
@@ -1707,7 +1839,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1074,
+          "line": 1171,
           "client": "client",
           "dynamic": false,
           "sql": "INSERT INTO plant_watering_history (plant_id, watered_at, watered_by, user_id) VALUES ($1, NOW(), $2, $3)",
@@ -1718,7 +1850,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1078,
+          "line": 1175,
           "client": "client",
           "dynamic": false,
           "sql": "UPDATE plants SET last_watered_at = NOW() WHERE id = $1 AND organization_id = $2 RETURNING *",
@@ -1729,7 +1861,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1082,
+          "line": 1179,
           "client": "client",
           "dynamic": false,
           "sql": "COMMIT",
@@ -1738,7 +1870,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1092,
+          "line": 1189,
           "client": "client",
           "dynamic": false,
           "sql": "ROLLBACK",
@@ -1752,14 +1884,14 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/plants/:id/history",
-      "line": 1100,
+      "line": 1197,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 1103,
+          "line": 1200,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT h.* FROM plant_watering_history h\n      JOIN plants p ON h.plant_id = p.id\n      WHERE h.plant_id = $1 AND p.organization_id = $2\n      ORDER BY h.watered_at DESC LIMIT $3",
@@ -1776,14 +1908,14 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/stats/participation",
-      "line": 1118,
+      "line": 1215,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 1129,
+          "line": 1226,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT\n        c.user_id,\n        COALESCE(c.completed_by, 'Desconocido') as name,\n        COALESCE(p.avatar, '🧑') as avatar,\n        COALESCE(p.color, '#6a9960') as color,\n        COUNT(*) as completions\n      FROM completions c\n      JOIN tasks t ON c.task_id = t.id\n      LEFT JOIN house_member_profiles p ON p.user_id = c.user_id AND p.organization_id = t.organization_id\n      WHERE t.organization_id = $1 ${dateFilter}\n      GROUP BY c.user_id, c.completed_by, p.avatar, p.color\n      ORDER BY completions DESC",
@@ -1796,7 +1928,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1149,
+          "line": 1246,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT\n        DATE(c.completed_at) as date,\n        COUNT(*) as count\n      FROM completions c\n      JOIN tasks t ON c.task_id = t.id\n      WHERE t.organization_id = $1\n        AND c.completed_at >= NOW() - INTERVAL '${chartDays} days'\n      GROUP BY DATE(c.completed_at)\n      ORDER BY date",
@@ -1808,7 +1940,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1162,
+          "line": 1259,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT\n        t.name,\n        COUNT(*) as completions\n      FROM completions c\n      JOIN tasks t ON c.task_id = t.id\n      WHERE t.organization_id = $1 ${dateFilter}\n      GROUP BY t.name\n      ORDER BY completions DESC\n      LIMIT 5",
@@ -1825,7 +1957,7 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/push/vapid-key",
-      "line": 1204,
+      "line": 1301,
       "middlewares": [],
       "queries": []
     },
@@ -1833,14 +1965,14 @@
       "file": "server/index.js",
       "method": "POST",
       "path": "/api/push/subscribe",
-      "line": 1211,
+      "line": 1308,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 1218,
+          "line": 1315,
           "client": "pool",
           "dynamic": false,
           "sql": "INSERT INTO push_subscriptions (user_id, organization_id, endpoint, keys_p256dh, keys_auth)\n      VALUES ($1, $2, $3, $4, $5)\n      ON CONFLICT (endpoint) DO UPDATE SET\n        user_id = EXCLUDED.user_id,\n        organization_id = EXCLUDED.organization_id,\n        keys_p256dh = EXCLUDED.keys_p256dh,\n        keys_auth = EXCLUDED.keys_auth,\n        updated_at = NOW()",
@@ -1856,13 +1988,13 @@
       "file": "server/index.js",
       "method": "DELETE",
       "path": "/api/push/subscribe",
-      "line": 1236,
+      "line": 1333,
       "middlewares": [
         "requireAuth"
       ],
       "queries": [
         {
-          "line": 1240,
+          "line": 1337,
           "client": "pool",
           "dynamic": false,
           "sql": "DELETE FROM push_subscriptions WHERE endpoint = $1 AND user_id = $2",
@@ -1878,14 +2010,14 @@
       "file": "server/index.js",
       "method": "GET",
       "path": "/api/push/status",
-      "line": 1248,
+      "line": 1345,
       "middlewares": [
         "requireAuth",
         "requireHouse"
       ],
       "queries": [
         {
-          "line": 1250,
+          "line": 1347,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT id FROM push_subscriptions WHERE user_id = $1 AND organization_id = $2 LIMIT 1",
@@ -1902,10 +2034,10 @@
     {
       "name": "sendPushToHouse",
       "file": "server/index.js",
-      "line": 1261,
+      "line": 1358,
       "queries": [
         {
-          "line": 1265,
+          "line": 1362,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT endpoint, keys_p256dh, keys_auth FROM push_subscriptions WHERE organization_id = $1",
@@ -1916,7 +2048,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1279,
+          "line": 1376,
           "client": "pool",
           "dynamic": false,
           "sql": "DELETE FROM push_subscriptions WHERE endpoint = $1",
@@ -1931,10 +2063,10 @@
     {
       "name": "migrate",
       "file": "server/index.js",
-      "line": 1291,
+      "line": 1388,
       "queries": [
         {
-          "line": 1294,
+          "line": 1391,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE TABLE IF NOT EXISTS tasks (\n        id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n        name        TEXT NOT NULL,\n        description TEXT,\n        frequency_type  TEXT NOT NULL CHECK (frequency_type IN ('daily', 'weekly', 'biweekly', 'monthly')),\n        frequency_value INTEGER NOT NULL DEFAULT 1,\n        is_active   BOOLEAN NOT NULL DEFAULT true,\n        product_name  TEXT,\n        product_image TEXT,\n        organization_id TEXT,\n        created_at  TIMESTAMPTZ DEFAULT NOW()\n      )",
@@ -1943,7 +2075,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1309,
+          "line": 1406,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE TABLE IF NOT EXISTS completions (\n        id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n        task_id     UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,\n        completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n        completed_by TEXT,\n        user_id TEXT\n      )",
@@ -1952,7 +2084,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1318,
+          "line": 1415,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_completions_task_id ON completions(task_id)",
@@ -1961,7 +2093,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1319,
+          "line": 1416,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_completions_completed_at ON completions(completed_at DESC)",
@@ -1970,7 +2102,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1321,
+          "line": 1418,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE TABLE IF NOT EXISTS products (\n        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n        name            TEXT NOT NULL,\n        category        TEXT NOT NULL DEFAULT 'general',\n        is_out_of_stock BOOLEAN NOT NULL DEFAULT false,\n        reminder_frequency_days INTEGER NOT NULL DEFAULT 30,\n        last_purchased_at TIMESTAMPTZ,\n        organization_id TEXT,\n        created_at      TIMESTAMPTZ DEFAULT NOW()\n      )",
@@ -1979,7 +2111,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1333,
+          "line": 1430,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)",
@@ -1988,7 +2120,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1334,
+          "line": 1431,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_products_out_of_stock ON products(is_out_of_stock)",
@@ -1997,7 +2129,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1336,
+          "line": 1433,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE TABLE IF NOT EXISTS shopping_categories (\n        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n        name            TEXT NOT NULL,\n        emoji           TEXT NOT NULL DEFAULT '📦',\n        sort_order      INTEGER NOT NULL DEFAULT 0,\n        organization_id TEXT NOT NULL,\n        created_at      TIMESTAMPTZ DEFAULT NOW()\n      )",
@@ -2006,7 +2138,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1346,
+          "line": 1443,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_shopping_categories_org ON shopping_categories(organization_id)",
@@ -2015,7 +2147,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1348,
+          "line": 1445,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE TABLE IF NOT EXISTS shopping_items (\n        id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n        name         TEXT NOT NULL,\n        note         TEXT,\n        added_by     TEXT,\n        is_purchased BOOLEAN NOT NULL DEFAULT false,\n        category_id  UUID REFERENCES shopping_categories(id) ON DELETE SET NULL,\n        organization_id TEXT,\n        created_at   TIMESTAMPTZ DEFAULT NOW()\n      )",
@@ -2024,7 +2156,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1360,
+          "line": 1457,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_shopping_items_purchased ON shopping_items(is_purchased)",
@@ -2033,7 +2165,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1361,
+          "line": 1458,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_shopping_items_category ON shopping_items(category_id)",
@@ -2042,7 +2174,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1383,
+          "line": 1480,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_tasks_org ON tasks(organization_id)",
@@ -2051,7 +2183,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1384,
+          "line": 1481,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_products_org ON products(organization_id)",
@@ -2060,7 +2192,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1385,
+          "line": 1482,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_shopping_items_org ON shopping_items(organization_id)",
@@ -2069,7 +2201,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1389,
+          "line": 1486,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_shopping_items_category ON shopping_items(category_id)",
@@ -2078,7 +2210,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1397,
+          "line": 1497,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_shopping_items_archived ON shopping_items(archived_at)",
@@ -2087,7 +2219,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1398,
+          "line": 1498,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_shopping_items_purchased_at ON shopping_items(purchased_at DESC)",
@@ -2096,7 +2228,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1401,
+          "line": 1501,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE TABLE IF NOT EXISTS house_member_profiles (\n        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n        user_id         TEXT NOT NULL,\n        organization_id TEXT NOT NULL,\n        avatar          TEXT NOT NULL DEFAULT '🧑',\n        color           TEXT NOT NULL DEFAULT '#6a9960',\n        home_screen     TEXT NOT NULL DEFAULT 'tasks',\n        created_at      TIMESTAMPTZ DEFAULT NOW(),\n        UNIQUE(user_id, organization_id)\n      )",
@@ -2105,7 +2237,25 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1415,
+          "line": 1515,
+          "client": "pool",
+          "dynamic": false,
+          "sql": "CREATE TABLE IF NOT EXISTS visits (\n        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n        organization_id TEXT NOT NULL,\n        user_id         TEXT NOT NULL,\n        visited_on      DATE NOT NULL,\n        created_at      TIMESTAMPTZ DEFAULT NOW()\n      )",
+          "op": "CREATE",
+          "tables": [],
+          "filtersByOrgId": true
+        },
+        {
+          "line": 1524,
+          "client": "pool",
+          "dynamic": false,
+          "sql": "CREATE INDEX IF NOT EXISTS idx_visits_org_user ON visits(organization_id, user_id, created_at DESC)",
+          "op": "CREATE",
+          "tables": [],
+          "filtersByOrgId": true
+        },
+        {
+          "line": 1527,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE TABLE IF NOT EXISTS super_admins (\n        id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n        user_id    TEXT NOT NULL UNIQUE,\n        created_at TIMESTAMPTZ DEFAULT NOW()\n      )",
@@ -2114,7 +2264,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1424,
+          "line": 1536,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE TABLE IF NOT EXISTS plants (\n        id                       UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n        name                     TEXT NOT NULL,\n        notes                    TEXT,\n        watering_frequency_days  INTEGER NOT NULL DEFAULT 7,\n        last_watered_at          TIMESTAMPTZ,\n        organization_id          TEXT NOT NULL,\n        created_at               TIMESTAMPTZ DEFAULT NOW()\n      )",
@@ -2123,7 +2273,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1435,
+          "line": 1547,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_plants_org ON plants(organization_id)",
@@ -2132,7 +2282,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1437,
+          "line": 1549,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE TABLE IF NOT EXISTS plant_watering_history (\n        id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n        plant_id    UUID NOT NULL REFERENCES plants(id) ON DELETE CASCADE,\n        watered_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n        watered_by  TEXT,\n        user_id     TEXT\n      )",
@@ -2141,7 +2291,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1446,
+          "line": 1558,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_plant_watering_plant_id ON plant_watering_history(plant_id)",
@@ -2150,7 +2300,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1447,
+          "line": 1559,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_plant_watering_at ON plant_watering_history(watered_at DESC)",
@@ -2159,7 +2309,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1450,
+          "line": 1562,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE TABLE IF NOT EXISTS push_subscriptions (\n        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n        user_id         TEXT NOT NULL,\n        organization_id TEXT NOT NULL,\n        endpoint        TEXT NOT NULL UNIQUE,\n        keys_p256dh     TEXT NOT NULL,\n        keys_auth       TEXT NOT NULL,\n        created_at      TIMESTAMPTZ DEFAULT NOW(),\n        updated_at      TIMESTAMPTZ DEFAULT NOW()\n      )",
@@ -2168,7 +2318,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1462,
+          "line": 1574,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_push_subs_org ON push_subscriptions(organization_id)",
@@ -2177,7 +2327,7 @@
           "filtersByOrgId": true
         },
         {
-          "line": 1463,
+          "line": 1575,
           "client": "pool",
           "dynamic": false,
           "sql": "CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id)",
@@ -2190,10 +2340,10 @@
     {
       "name": "addColumnIfMissing",
       "file": "server/index.js",
-      "line": 1471,
+      "line": 1583,
       "queries": [
         {
-          "line": 1472,
+          "line": 1584,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT column_name FROM information_schema.columns\n    WHERE table_name = $1 AND column_name = $2",
@@ -2202,7 +2352,7 @@
           "filtersByOrgId": false
         },
         {
-          "line": 1477,
+          "line": 1589,
           "client": "pool",
           "dynamic": false,
           "sql": "ALTER TABLE ${table} ADD COLUMN ${column} ${type}",
@@ -2221,10 +2371,11 @@
           "line": 47,
           "client": "pool",
           "dynamic": false,
-          "sql": "SELECT * FROM \"member\" WHERE \"userId\" = $1 AND \"organizationId\" = $2",
+          "sql": "SELECT m.role, COALESCE(p.member_type, 'regular') AS member_type\n         FROM \"member\" m\n         LEFT JOIN house_member_profiles p\n           ON p.user_id = m.\"userId\" AND p.organization_id = m.\"organizationId\"\n         WHERE \"userId\" = $1 AND \"organizationId\" = $2",
           "op": "SELECT",
           "tables": [
-            "member"
+            "member",
+            "house_member_profiles"
           ],
           "filtersByOrgId": true
         }
@@ -2233,10 +2384,10 @@
     {
       "name": "requireSuperAdmin",
       "file": "server/lib/middleware.js",
-      "line": 66,
+      "line": 70,
       "queries": [
         {
-          "line": 68,
+          "line": 72,
           "client": "pool",
           "dynamic": false,
           "sql": "SELECT id FROM super_admins WHERE user_id = $1",
@@ -2327,7 +2478,7 @@
           "method": "POST",
           "path": "/api/houses/seed",
           "file": "server/index.js",
-          "line": 332,
+          "line": 363,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2336,7 +2487,7 @@
           "method": "GET",
           "path": "/api/tasks/pending",
           "file": "server/index.js",
-          "line": 503,
+          "line": 534,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2345,7 +2496,7 @@
           "method": "DELETE",
           "path": "/api/tasks/:id",
           "file": "server/index.js",
-          "line": 578,
+          "line": 609,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2354,7 +2505,7 @@
           "method": "GET",
           "path": "/api/completions",
           "file": "server/index.js",
-          "line": 598,
+          "line": 629,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2363,7 +2514,7 @@
           "method": "POST",
           "path": "/api/completions",
           "file": "server/index.js",
-          "line": 616,
+          "line": 647,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2372,7 +2523,7 @@
           "method": "GET",
           "path": "/api/completions/:taskId/history",
           "file": "server/index.js",
-          "line": 669,
+          "line": 766,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2381,7 +2532,7 @@
           "method": "GET",
           "path": "/api/stats/participation",
           "file": "server/index.js",
-          "line": 1129,
+          "line": 1226,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2390,7 +2541,7 @@
           "method": "GET",
           "path": "/api/stats/participation",
           "file": "server/index.js",
-          "line": 1149,
+          "line": 1246,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2399,7 +2550,7 @@
           "method": "GET",
           "path": "/api/stats/participation",
           "file": "server/index.js",
-          "line": 1162,
+          "line": 1259,
           "op": "SELECT",
           "filtersByOrgId": true
         }
@@ -2410,7 +2561,7 @@
           "method": "DELETE",
           "path": "/api/houses/:id",
           "file": "server/index.js",
-          "line": 298,
+          "line": 329,
           "op": "DELETE",
           "filtersByOrgId": true
         },
@@ -2419,7 +2570,7 @@
           "method": "POST",
           "path": "/api/houses/seed",
           "file": "server/index.js",
-          "line": 368,
+          "line": 399,
           "op": "INSERT",
           "filtersByOrgId": true
         },
@@ -2428,7 +2579,7 @@
           "method": "POST",
           "path": "/api/houses/seed",
           "file": "server/index.js",
-          "line": 404,
+          "line": 435,
           "op": "INSERT",
           "filtersByOrgId": true
         },
@@ -2437,7 +2588,7 @@
           "method": "POST",
           "path": "/api/tasks",
           "file": "server/index.js",
-          "line": 544,
+          "line": 575,
           "op": "INSERT",
           "filtersByOrgId": true
         },
@@ -2446,7 +2597,7 @@
           "method": "DELETE",
           "path": "/api/tasks/:id",
           "file": "server/index.js",
-          "line": 586,
+          "line": 617,
           "op": "DELETE",
           "filtersByOrgId": true
         },
@@ -2455,7 +2606,7 @@
           "method": "POST",
           "path": "/api/completions",
           "file": "server/index.js",
-          "line": 628,
+          "line": 680,
           "op": "UPDATE",
           "filtersByOrgId": true
         },
@@ -2464,7 +2615,7 @@
           "method": "POST",
           "path": "/api/tasks/:id/reset",
           "file": "server/index.js",
-          "line": 654,
+          "line": 751,
           "op": "UPDATE",
           "filtersByOrgId": true
         }
@@ -2538,7 +2689,7 @@
           "method": "GET",
           "path": "/api/tasks/pending",
           "file": "server/index.js",
-          "line": 503,
+          "line": 534,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2547,7 +2698,7 @@
           "method": "GET",
           "path": "/api/completions",
           "file": "server/index.js",
-          "line": 598,
+          "line": 629,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2556,7 +2707,7 @@
           "method": "GET",
           "path": "/api/completions/:taskId/history",
           "file": "server/index.js",
-          "line": 669,
+          "line": 766,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2565,7 +2716,7 @@
           "method": "GET",
           "path": "/api/stats/participation",
           "file": "server/index.js",
-          "line": 1129,
+          "line": 1226,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2574,7 +2725,7 @@
           "method": "GET",
           "path": "/api/stats/participation",
           "file": "server/index.js",
-          "line": 1149,
+          "line": 1246,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2583,7 +2734,7 @@
           "method": "GET",
           "path": "/api/stats/participation",
           "file": "server/index.js",
-          "line": 1162,
+          "line": 1259,
           "op": "SELECT",
           "filtersByOrgId": true
         }
@@ -2594,7 +2745,7 @@
           "method": "DELETE",
           "path": "/api/tasks/:id",
           "file": "server/index.js",
-          "line": 585,
+          "line": 616,
           "op": "DELETE",
           "filtersByOrgId": false
         },
@@ -2603,7 +2754,7 @@
           "method": "POST",
           "path": "/api/completions",
           "file": "server/index.js",
-          "line": 621,
+          "line": 673,
           "op": "INSERT",
           "filtersByOrgId": false
         }
@@ -2665,7 +2816,7 @@
           "method": "DELETE",
           "path": "/api/houses/:id",
           "file": "server/index.js",
-          "line": 299,
+          "line": 330,
           "op": "DELETE",
           "filtersByOrgId": true
         },
@@ -2674,7 +2825,7 @@
           "method": "POST",
           "path": "/api/houses/seed",
           "file": "server/index.js",
-          "line": 460,
+          "line": 491,
           "op": "INSERT",
           "filtersByOrgId": true
         },
@@ -2683,7 +2834,7 @@
           "method": "POST",
           "path": "/api/products",
           "file": "server/index.js",
-          "line": 712,
+          "line": 809,
           "op": "INSERT",
           "filtersByOrgId": true
         },
@@ -2692,7 +2843,7 @@
           "method": "POST",
           "path": "/api/products/:id/purchase",
           "file": "server/index.js",
-          "line": 752,
+          "line": 849,
           "op": "UPDATE",
           "filtersByOrgId": true
         },
@@ -2701,7 +2852,7 @@
           "method": "DELETE",
           "path": "/api/products/:id",
           "file": "server/index.js",
-          "line": 769,
+          "line": 866,
           "op": "DELETE",
           "filtersByOrgId": true
         }
@@ -2746,7 +2897,7 @@
           "method": "GET",
           "path": "/api/shopping-categories",
           "file": "server/index.js",
-          "line": 781,
+          "line": 878,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2755,7 +2906,7 @@
           "method": "POST",
           "path": "/api/shopping-categories",
           "file": "server/index.js",
-          "line": 797,
+          "line": 894,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2764,7 +2915,7 @@
           "method": "GET",
           "path": "/api/shopping-items",
           "file": "server/index.js",
-          "line": 858,
+          "line": 955,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2773,7 +2924,7 @@
           "method": "GET",
           "path": "/api/shopping-items/history",
           "file": "server/index.js",
-          "line": 942,
+          "line": 1039,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2782,7 +2933,7 @@
           "method": "GET",
           "path": "/api/shopping-items/recommendations",
           "file": "server/index.js",
-          "line": 960,
+          "line": 1057,
           "op": "SELECT",
           "filtersByOrgId": true
         }
@@ -2793,7 +2944,7 @@
           "method": "DELETE",
           "path": "/api/houses/:id",
           "file": "server/index.js",
-          "line": 301,
+          "line": 332,
           "op": "DELETE",
           "filtersByOrgId": true
         },
@@ -2802,7 +2953,7 @@
           "method": "POST",
           "path": "/api/shopping-categories",
           "file": "server/index.js",
-          "line": 801,
+          "line": 898,
           "op": "INSERT",
           "filtersByOrgId": true
         },
@@ -2811,7 +2962,7 @@
           "method": "DELETE",
           "path": "/api/shopping-categories/:id",
           "file": "server/index.js",
-          "line": 834,
+          "line": 931,
           "op": "DELETE",
           "filtersByOrgId": true
         }
@@ -2878,7 +3029,7 @@
           "method": "GET",
           "path": "/api/shopping-items",
           "file": "server/index.js",
-          "line": 858,
+          "line": 955,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2887,7 +3038,7 @@
           "method": "GET",
           "path": "/api/shopping-items/history",
           "file": "server/index.js",
-          "line": 942,
+          "line": 1039,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2896,7 +3047,7 @@
           "method": "GET",
           "path": "/api/shopping-items/recommendations",
           "file": "server/index.js",
-          "line": 960,
+          "line": 1057,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -2905,7 +3056,7 @@
           "method": "GET",
           "path": "/api/shopping-items/recommendations",
           "file": "server/index.js",
-          "line": 971,
+          "line": 1068,
           "op": "SELECT",
           "filtersByOrgId": true
         }
@@ -2916,7 +3067,7 @@
           "method": "DELETE",
           "path": "/api/houses/:id",
           "file": "server/index.js",
-          "line": 300,
+          "line": 331,
           "op": "DELETE",
           "filtersByOrgId": true
         },
@@ -2925,7 +3076,7 @@
           "method": "GET",
           "path": "/api/shopping-items",
           "file": "server/index.js",
-          "line": 847,
+          "line": 944,
           "op": "UPDATE",
           "filtersByOrgId": true
         },
@@ -2934,7 +3085,7 @@
           "method": "POST",
           "path": "/api/shopping-items",
           "file": "server/index.js",
-          "line": 876,
+          "line": 973,
           "op": "INSERT",
           "filtersByOrgId": true
         },
@@ -2943,7 +3094,7 @@
           "method": "DELETE",
           "path": "/api/shopping-items/clear-purchased",
           "file": "server/index.js",
-          "line": 922,
+          "line": 1019,
           "op": "UPDATE",
           "filtersByOrgId": true
         },
@@ -2952,7 +3103,7 @@
           "method": "DELETE",
           "path": "/api/shopping-items/:id",
           "file": "server/index.js",
-          "line": 988,
+          "line": 1085,
           "op": "DELETE",
           "filtersByOrgId": true
         }
@@ -2987,6 +3138,10 @@
             "type": "TEXT"
           },
           {
+            "name": "member_type",
+            "type": "TEXT"
+          },
+          {
             "name": "created_at",
             "type": "TIMESTAMPTZ"
           }
@@ -3010,7 +3165,7 @@
           "method": "GET",
           "path": "/api/houses/profile",
           "file": "server/index.js",
-          "line": 182,
+          "line": 212,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -3019,7 +3174,7 @@
           "method": "PUT",
           "path": "/api/houses/profile",
           "file": "server/index.js",
-          "line": 204,
+          "line": 235,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -3028,7 +3183,15 @@
           "method": "GET",
           "path": "/api/stats/participation",
           "file": "server/index.js",
-          "line": 1129,
+          "line": 1226,
+          "op": "SELECT",
+          "filtersByOrgId": true
+        },
+        {
+          "kind": "helper",
+          "helper": "requireHouse",
+          "file": "server/lib/middleware.js",
+          "line": 47,
           "op": "SELECT",
           "filtersByOrgId": true
         }
@@ -3036,10 +3199,19 @@
       "writers": [
         {
           "kind": "route",
+          "method": "PATCH",
+          "path": "/api/houses/members/:userId/type",
+          "file": "server/index.js",
+          "line": 195,
+          "op": "INSERT",
+          "filtersByOrgId": true
+        },
+        {
+          "kind": "route",
           "method": "PUT",
           "path": "/api/houses/profile",
           "file": "server/index.js",
-          "line": 212,
+          "line": 243,
           "op": "INSERT",
           "filtersByOrgId": true
         },
@@ -3048,8 +3220,69 @@
           "method": "DELETE",
           "path": "/api/houses/:id",
           "file": "server/index.js",
-          "line": 302,
+          "line": 333,
           "op": "DELETE",
+          "filtersByOrgId": true
+        }
+      ]
+    },
+    "visits": {
+      "defined": true,
+      "schema": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "UUID"
+          },
+          {
+            "name": "organization_id",
+            "type": "TEXT"
+          },
+          {
+            "name": "user_id",
+            "type": "TEXT"
+          },
+          {
+            "name": "visited_on",
+            "type": "DATE"
+          },
+          {
+            "name": "created_at",
+            "type": "TIMESTAMPTZ"
+          }
+        ],
+        "fks": [],
+        "hasOrgId": true,
+        "source": "db/init.sql"
+      },
+      "readers": [
+        {
+          "kind": "route",
+          "method": "POST",
+          "path": "/api/completions",
+          "file": "server/index.js",
+          "line": 656,
+          "op": "SELECT",
+          "filtersByOrgId": true
+        },
+        {
+          "kind": "route",
+          "method": "GET",
+          "path": "/api/visits/active",
+          "file": "server/index.js",
+          "line": 708,
+          "op": "SELECT",
+          "filtersByOrgId": true
+        }
+      ],
+      "writers": [
+        {
+          "kind": "route",
+          "method": "POST",
+          "path": "/api/visits",
+          "file": "server/index.js",
+          "line": 735,
+          "op": "INSERT",
           "filtersByOrgId": true
         }
       ]
@@ -3089,7 +3322,7 @@
           "kind": "helper",
           "helper": "requireSuperAdmin",
           "file": "server/lib/middleware.js",
-          "line": 68,
+          "line": 72,
           "op": "SELECT",
           "filtersByOrgId": false
         }
@@ -3139,7 +3372,7 @@
           "method": "GET",
           "path": "/api/plants",
           "file": "server/index.js",
-          "line": 1000,
+          "line": 1097,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -3148,7 +3381,7 @@
           "method": "POST",
           "path": "/api/plants/:id/water",
           "file": "server/index.js",
-          "line": 1067,
+          "line": 1164,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -3157,7 +3390,7 @@
           "method": "GET",
           "path": "/api/plants/:id/history",
           "file": "server/index.js",
-          "line": 1103,
+          "line": 1200,
           "op": "SELECT",
           "filtersByOrgId": true
         }
@@ -3168,7 +3401,7 @@
           "method": "DELETE",
           "path": "/api/houses/:id",
           "file": "server/index.js",
-          "line": 304,
+          "line": 335,
           "op": "DELETE",
           "filtersByOrgId": true
         },
@@ -3177,7 +3410,7 @@
           "method": "DELETE",
           "path": "/api/houses/:id",
           "file": "server/index.js",
-          "line": 308,
+          "line": 339,
           "op": "DELETE",
           "filtersByOrgId": true
         },
@@ -3186,7 +3419,7 @@
           "method": "POST",
           "path": "/api/plants",
           "file": "server/index.js",
-          "line": 1016,
+          "line": 1113,
           "op": "INSERT",
           "filtersByOrgId": true
         },
@@ -3195,7 +3428,7 @@
           "method": "PATCH",
           "path": "/api/plants/:id",
           "file": "server/index.js",
-          "line": 1035,
+          "line": 1132,
           "op": "UPDATE",
           "filtersByOrgId": true
         },
@@ -3204,7 +3437,7 @@
           "method": "DELETE",
           "path": "/api/plants/:id",
           "file": "server/index.js",
-          "line": 1051,
+          "line": 1148,
           "op": "DELETE",
           "filtersByOrgId": true
         },
@@ -3213,7 +3446,7 @@
           "method": "POST",
           "path": "/api/plants/:id/water",
           "file": "server/index.js",
-          "line": 1078,
+          "line": 1175,
           "op": "UPDATE",
           "filtersByOrgId": true
         }
@@ -3260,7 +3493,7 @@
           "method": "GET",
           "path": "/api/plants/:id/history",
           "file": "server/index.js",
-          "line": 1103,
+          "line": 1200,
           "op": "SELECT",
           "filtersByOrgId": true
         }
@@ -3271,7 +3504,7 @@
           "method": "DELETE",
           "path": "/api/houses/:id",
           "file": "server/index.js",
-          "line": 304,
+          "line": 335,
           "op": "DELETE",
           "filtersByOrgId": true
         },
@@ -3280,7 +3513,7 @@
           "method": "POST",
           "path": "/api/plants/:id/water",
           "file": "server/index.js",
-          "line": 1074,
+          "line": 1171,
           "op": "INSERT",
           "filtersByOrgId": false
         }
@@ -3325,7 +3558,7 @@
         ],
         "fks": [],
         "hasOrgId": true,
-        "source": "server/index.js:1450"
+        "source": "server/index.js:1562"
       },
       "readers": [
         {
@@ -3333,7 +3566,7 @@
           "method": "GET",
           "path": "/api/push/status",
           "file": "server/index.js",
-          "line": 1250,
+          "line": 1347,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -3341,7 +3574,7 @@
           "kind": "helper",
           "helper": "sendPushToHouse",
           "file": "server/index.js",
-          "line": 1265,
+          "line": 1362,
           "op": "SELECT",
           "filtersByOrgId": true
         }
@@ -3352,7 +3585,7 @@
           "method": "DELETE",
           "path": "/api/houses/:id",
           "file": "server/index.js",
-          "line": 303,
+          "line": 334,
           "op": "DELETE",
           "filtersByOrgId": true
         },
@@ -3361,7 +3594,7 @@
           "method": "POST",
           "path": "/api/push/subscribe",
           "file": "server/index.js",
-          "line": 1218,
+          "line": 1315,
           "op": "INSERT",
           "filtersByOrgId": true
         },
@@ -3370,7 +3603,7 @@
           "method": "DELETE",
           "path": "/api/push/subscribe",
           "file": "server/index.js",
-          "line": 1240,
+          "line": 1337,
           "op": "DELETE",
           "filtersByOrgId": false
         },
@@ -3378,7 +3611,7 @@
           "kind": "helper",
           "helper": "sendPushToHouse",
           "file": "server/index.js",
-          "line": 1279,
+          "line": 1376,
           "op": "DELETE",
           "filtersByOrgId": false
         }
@@ -3411,7 +3644,7 @@
           "method": "GET",
           "path": "/api/invitations",
           "file": "server/index.js",
-          "line": 228,
+          "line": 259,
           "op": "SELECT",
           "filtersByOrgId": true
         }
@@ -3447,7 +3680,7 @@
           "method": "DELETE",
           "path": "/api/houses/:id",
           "file": "server/index.js",
-          "line": 312,
+          "line": 343,
           "op": "DELETE",
           "filtersByOrgId": false
         }
@@ -3486,10 +3719,19 @@
         },
         {
           "kind": "route",
+          "method": "PATCH",
+          "path": "/api/houses/members/:userId/type",
+          "file": "server/index.js",
+          "line": 188,
+          "op": "SELECT",
+          "filtersByOrgId": true
+        },
+        {
+          "kind": "route",
           "method": "DELETE",
           "path": "/api/houses/:id",
           "file": "server/index.js",
-          "line": 285,
+          "line": 316,
           "op": "SELECT",
           "filtersByOrgId": true
         },
@@ -3508,7 +3750,7 @@
           "method": "DELETE",
           "path": "/api/houses/:id",
           "file": "server/index.js",
-          "line": 311,
+          "line": 342,
           "op": "DELETE",
           "filtersByOrgId": true
         }
@@ -3523,7 +3765,7 @@
           "method": "GET",
           "path": "/api/invitations",
           "file": "server/index.js",
-          "line": 228,
+          "line": 259,
           "op": "SELECT",
           "filtersByOrgId": true
         }
@@ -3534,7 +3776,7 @@
           "method": "DELETE",
           "path": "/api/invitations/:id",
           "file": "server/index.js",
-          "line": 245,
+          "line": 276,
           "op": "DELETE",
           "filtersByOrgId": true
         },
@@ -3543,7 +3785,7 @@
           "method": "POST",
           "path": "/api/invitations/:id/renew",
           "file": "server/index.js",
-          "line": 261,
+          "line": 292,
           "op": "UPDATE",
           "filtersByOrgId": true
         },
@@ -3552,7 +3794,7 @@
           "method": "DELETE",
           "path": "/api/houses/:id",
           "file": "server/index.js",
-          "line": 310,
+          "line": 341,
           "op": "DELETE",
           "filtersByOrgId": true
         }

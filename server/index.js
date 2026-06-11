@@ -161,7 +161,8 @@ app.get('/api/houses/members', requireAuth, requireHouse, async (req, res) => {
       SELECT m."userId", m.role, m."createdAt",
              u.name, u.email,
              COALESCE(p.avatar, '🧑') as avatar,
-             COALESCE(p.color, '#6a9960') as color
+             COALESCE(p.color, '#6a9960') as color,
+             COALESCE(p.member_type, 'regular') as member_type
       FROM "member" m
       JOIN "user" u ON m."userId" = u.id
       LEFT JOIN house_member_profiles p ON p.user_id = m."userId" AND p.organization_id = m."organizationId"
@@ -169,6 +170,35 @@ app.get('/api/houses/members', requireAuth, requireHouse, async (req, res) => {
       ORDER BY m."createdAt"
     `, [req.house.id])
     res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+const VALID_MEMBER_TYPES = ['regular', 'externo']
+
+// PATCH /api/houses/members/:userId/type - owner/admin marca a un miembro como externo (o regular)
+app.patch('/api/houses/members/:userId/type', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const { userId } = req.params
+    const { member_type } = req.body
+    if (!VALID_MEMBER_TYPES.includes(member_type)) {
+      return res.status(400).json({ error: 'Tipo de miembro invalido' })
+    }
+    const { rows: target } = await pool.query(
+      'SELECT role FROM "member" WHERE "userId" = $1 AND "organizationId" = $2',
+      [userId, req.house.id]
+    )
+    if (target.length === 0) return res.status(404).json({ error: 'Miembro no encontrado' })
+    if (target[0].role === 'owner') return res.status(400).json({ error: 'No puedes cambiar el tipo del dueño' })
+
+    await pool.query(`
+      INSERT INTO house_member_profiles (user_id, organization_id, member_type)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (user_id, organization_id)
+      DO UPDATE SET member_type = EXCLUDED.member_type
+    `, [userId, req.house.id, member_type])
+    res.json({ user_id: userId, member_type })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -184,10 +214,11 @@ app.get('/api/houses/profile', requireAuth, requireHouse, async (req, res) => {
       [req.user.id, req.house.id]
     )
     if (rows.length === 0) {
-      return res.json({ user_id: req.user.id, organization_id: req.house.id, avatar: '🧑', color: '#6a9960', home_screen: 'tasks' })
+      return res.json({ user_id: req.user.id, organization_id: req.house.id, avatar: '🧑', color: '#6a9960', home_screen: 'tasks', member_type: 'regular' })
     }
     const profile = rows[0]
     if (!profile.home_screen) profile.home_screen = 'tasks'
+    if (!profile.member_type) profile.member_type = 'regular'
     res.json(profile)
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -618,9 +649,30 @@ app.post('/api/completions', requireAuth, requireHouse, async (req, res) => {
     )
     if (taskCheck.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' })
 
+    // El personal externo no fija la fecha: sus tareas heredan la fecha de la visita
+    // marcada (nunca posterior), para que los contadores no se corran al registrar tarde.
+    let completedAt = completed_at || new Date().toISOString()
+    if (req.house.memberType === 'externo') {
+      const { rows: visit } = await pool.query(`
+        SELECT to_char(visited_on, 'YYYY-MM-DD') AS d
+        FROM visits
+        WHERE organization_id = $1 AND user_id = $2
+        ORDER BY created_at DESC
+        LIMIT 1
+      `, [req.house.id, req.user.id])
+      if (visit.length === 0) {
+        return res.status(400).json({ error: 'Marca tu llegada antes de registrar tareas' })
+      }
+      // Mediodia UTC del dia de la visita: mantiene el mismo dia calendario en los
+      // contadores y, si la visita es hoy, se topa con el momento actual.
+      const visitTs = new Date(`${visit[0].d}T12:00:00.000Z`)
+      const now = new Date()
+      completedAt = (visitTs > now ? now : visitTs).toISOString()
+    }
+
     const { rows } = await pool.query(
       'INSERT INTO completions (task_id, completed_at, completed_by, user_id) VALUES ($1, $2, $3, $4) RETURNING *',
-      [task_id, completed_at || new Date().toISOString(), req.user.name || null, req.user.id]
+      [task_id, completedAt, req.user.name || null, req.user.id]
     )
 
     // Tareas efimeras de una sola vez: se desactivan automaticamente al cumplirse.
@@ -640,6 +692,51 @@ app.post('/api/completions', requireAuth, requireHouse, async (req, res) => {
       tag: 'task-completed',
     })
 
+    res.json(rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// --- Visitas del personal externo ---
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+// GET /api/visits/active - ultima visita registrada por el usuario en esta casa
+app.get('/api/visits/active', requireAuth, requireHouse, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, to_char(visited_on, 'YYYY-MM-DD') AS visited_on, created_at
+      FROM visits
+      WHERE organization_id = $1 AND user_id = $2
+      ORDER BY created_at DESC
+      LIMIT 1
+    `, [req.house.id, req.user.id])
+    res.json(rows[0] || null)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/visits - el externo marca su llegada (fecha de la visita, nunca futura)
+app.post('/api/visits', requireAuth, requireHouse, async (req, res) => {
+  try {
+    if (req.house.memberType !== 'externo') {
+      return res.status(403).json({ error: 'Solo el rol externo marca llegada' })
+    }
+    const { visited_on } = req.body
+    if (!visited_on || !DATE_RE.test(visited_on)) {
+      return res.status(400).json({ error: 'Fecha de visita invalida' })
+    }
+    const { rows: chk } = await pool.query('SELECT ($1::date > CURRENT_DATE) AS future', [visited_on])
+    if (chk[0].future) {
+      return res.status(400).json({ error: 'La fecha de la visita no puede ser futura' })
+    }
+    const { rows } = await pool.query(`
+      INSERT INTO visits (organization_id, user_id, visited_on)
+      VALUES ($1, $2, $3)
+      RETURNING id, to_char(visited_on, 'YYYY-MM-DD') AS visited_on, created_at
+    `, [req.house.id, req.user.id, visited_on])
     res.json(rows[0])
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -1391,6 +1488,9 @@ async function migrate() {
     // Pantalla de inicio personalizable por usuario en cada casa
     await addColumnIfMissing('house_member_profiles', 'home_screen', "TEXT NOT NULL DEFAULT 'tasks'")
 
+    // Rol externo (personal de aseo): flag a nivel de app sobre el perfil del miembro
+    await addColumnIfMissing('house_member_profiles', 'member_type', "TEXT NOT NULL DEFAULT 'regular'")
+
     // Archivado de compras + historial para recomendaciones (Fase 2)
     await addColumnIfMissing('shopping_items', 'purchased_at', 'TIMESTAMPTZ')
     await addColumnIfMissing('shopping_items', 'archived_at', 'TIMESTAMPTZ')
@@ -1410,6 +1510,18 @@ async function migrate() {
         UNIQUE(user_id, organization_id)
       )
     `)
+
+    // Visitas del personal externo (marca de llegada -> fecha que heredan sus tareas)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS visits (
+        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        organization_id TEXT NOT NULL,
+        user_id         TEXT NOT NULL,
+        visited_on      DATE NOT NULL,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      )
+    `)
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_visits_org_user ON visits(organization_id, user_id, created_at DESC)')
 
     // Super admins table
     await pool.query(`

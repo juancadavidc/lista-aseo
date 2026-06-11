@@ -75,6 +75,16 @@ export async function fetchTaskHistory(taskId, limit = 10) {
   return request(`/completions/${taskId}/history?limit=${limit}`)
 }
 
+// --- Visitas (rol externo) ---
+
+export async function fetchActiveVisit() {
+  return request('/visits/active')
+}
+
+export async function markVisit(visited_on) {
+  return request('/visits', { method: 'POST', body: JSON.stringify({ visited_on }) })
+}
+
 // --- Product images ---
 
 export async function uploadProductImage(file) {
@@ -246,6 +256,10 @@ export async function fetchSuperAdminStats() {
 
 export async function fetchHouseMembers() {
   return request('/houses/members')
+}
+
+export async function setMemberType(userId, member_type) {
+  return request(`/houses/members/${userId}/type`, { method: 'PATCH', body: JSON.stringify({ member_type }) })
 }
 
 export async function fetchHouseProfile() {
