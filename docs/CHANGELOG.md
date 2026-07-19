@@ -22,6 +22,12 @@
 
 ## [Fase 2] — Experiencias Agénticas
 
+### 2026-07-19 — Fix: error al crear tarea "Única vez" en BDs existentes
+- **Problema** — al crear una tarea con frecuencia `once` (Única vez), el guardado fallaba con `new row for relation "tasks" violates check constraint "tasks_frequency_type_check"`. La feature de tareas efímeras (2026-05-24) añadió la migración del `CHECK` **solo en `db/init.sql`**, pero la base de datos de producción se inicializa/migra desde `migrate()` en `server/index.js`, no desde `init.sql`. Como `migrate()` usa `CREATE TABLE IF NOT EXISTS` con el constraint viejo (sin `'once'`) y la tabla ya existía, el `CHECK` nunca se actualizó y seguía rechazando `once`.
+- **Solución** — se añadió la migración incremental (`DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT` con `'once'`) a la sección de migraciones de `migrate()`, replicando lo que ya hacía `db/init.sql`. Además se corrigió el `CREATE TABLE IF NOT EXISTS tasks` de `migrate()` para que las instalaciones nuevas incluyan `'once'` desde el inicio.
+- **Sin cambios de frontend ni API** — el frontend ya enviaba `once` correctamente; solo faltaba que el constraint de la BD lo admitiera.
+- Archivos: `server/index.js`.
+
 ### 2026-05-26 — UI: Navbar y menú móvil "luxury hogar"
 - **Visión** — refinamiento del header y drawer lateral para elevar la percepción de marca de "app utilitaria" a "concierge del hogar". Prepara el terreno para los tiers de pago de Fase 3: si la app se ve premium, justifica el precio.
 - **Header** — botón hamburguesa pasó de `border + fondo blanco` (parecía input) a **ghost button** con stroke fino (1.6px) y barra inferior corta para un trazo editorial. El logo card mantiene los colores moss pero gana degradado más profundo (`#7aa870 → #385c32`) con inner highlight + sombra sutil. El título "Perlato" ahora viene acompañado de un **saludo dinámico** ("Buenas tardes, Juan") en micro tipografía body con tracking amplio, dependiente de la hora y del nombre de la sesión.
