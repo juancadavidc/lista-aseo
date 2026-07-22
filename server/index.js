@@ -1393,7 +1393,7 @@ async function migrate() {
         id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
         name        TEXT NOT NULL,
         description TEXT,
-        frequency_type  TEXT NOT NULL CHECK (frequency_type IN ('daily', 'weekly', 'biweekly', 'monthly')),
+        frequency_type  TEXT NOT NULL CHECK (frequency_type IN ('daily', 'weekly', 'biweekly', 'monthly', 'once')),
         frequency_value INTEGER NOT NULL DEFAULT 1,
         is_active   BOOLEAN NOT NULL DEFAULT true,
         product_name  TEXT,
@@ -1467,6 +1467,10 @@ async function migrate() {
     await addColumnIfMissing('tasks', 'product_image', 'TEXT')
     // Reset de aparición sin borrar historial
     await addColumnIfMissing('tasks', 'last_reset_at', 'TIMESTAMPTZ')
+    // Frecuencia 'once' (tarea de una sola vez): actualizar el CHECK en BDs existentes
+    await pool.query('ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_frequency_type_check')
+    await pool.query(`ALTER TABLE tasks ADD CONSTRAINT tasks_frequency_type_check
+      CHECK (frequency_type IN ('daily', 'weekly', 'biweekly', 'monthly', 'once'))`)
     // Unidades compradas por vez + timestamp de agotado para detectar consumo acelerado
     await addColumnIfMissing('products', 'units', 'INTEGER NOT NULL DEFAULT 1')
     await addColumnIfMissing('products', 'last_out_of_stock_at', 'TIMESTAMPTZ')
