@@ -9,7 +9,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "better-auth": "^1.5.6",
+    "better-auth": "^1.6.13",
     "cors": "^2.8.5",
     "dotenv": "^17.4.1",
     "express": "^4.21.0",
@@ -20,5 +20,10 @@
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.4",
     "vitest": "^4.1.4"
+  },
+  "overrides": {
+    "vitest": {
+      "vite": "8.1.5"
+    }
   }
 }

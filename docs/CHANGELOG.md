@@ -22,6 +22,14 @@
 
 ## [Fase 2] — Experiencias Agénticas
 
+### 2026-07-19 — Seguridad: better-auth 1.6.13 (fix XSS) + CI npm audit verde
+- **Contexto** — el job `npm audit (high severity)` del workflow *PR Checks* bloqueaba el PR con dos vulnerabilidades *high*: `better-auth <1.6.13` (XSS almacenado vía `redirect_uri` `javascript:` en oidc-provider/mcp) y un `vite` de la cadena de test.
+- **better-auth** — subido a `^1.6.13` en `frontend` y `server` (dentro del rango previo `^1.5.6`, sin cambios de API). Es la vulnerabilidad real de producción.
+- **vite (herramienta de test)** — el `vite` *high* solo entraba al árbol de producción porque `better-auth` declara `vitest` como `peerDependency`. Se fijó con un `override` de npm (`vitest → vite 8.1.5`, ya parchado) **sin tocar el `vite` de build (5.x) ni `react-router`**, que quedan intactos.
+- **Sin upgrades mayores** — `react-router` sigue en 6.30.3; solo se actualizaron el subárbol propio de `better-auth` y el `vite` de test, todo dentro de rango.
+- **Verificación** — audit `--omit=dev --audit-level=high` verde en ambos, frontend 163/163, backend 71/71, build de Vite verde.
+- Archivos: `frontend/package.json`, `frontend/package-lock.json`, `server/package.json`, `server/package-lock.json`.
+
 ### 2026-07-19 — Fix: error al crear tarea "Única vez" en BDs existentes
 - **Problema** — al crear una tarea con frecuencia `once` (Única vez), el guardado fallaba con `new row for relation "tasks" violates check constraint "tasks_frequency_type_check"`. La feature de tareas efímeras (2026-05-24) añadió la migración del `CHECK` **solo en `db/init.sql`**, pero la base de datos de producción se inicializa/migra desde `migrate()` en `server/index.js`, no desde `init.sql`. Como `migrate()` usa `CREATE TABLE IF NOT EXISTS` con el constraint viejo (sin `'once'`) y la tabla ya existía, el `CHECK` nunca se actualizó y seguía rechazando `once`.
 - **Solución** — se añadió la migración incremental (`DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT` con `'once'`) a la sección de migraciones de `migrate()`, replicando lo que ya hacía `db/init.sql`. Además se corrigió el `CREATE TABLE IF NOT EXISTS tasks` de `migrate()` para que las instalaciones nuevas incluyan `'once'` desde el inicio.
