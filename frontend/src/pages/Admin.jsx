@@ -5,6 +5,7 @@ import {
   frequencyLabel, FREQUENCY_LABELS,
 } from '../lib/tasks'
 import { getImageUrl, fetchHouseMembers } from '../lib/api'
+import { authClient } from '../lib/auth'
 import TaskForm from '../components/TaskForm'
 import HistoryModal from '../components/HistoryModal'
 
@@ -47,10 +48,16 @@ export default function Admin() {
   const [historyTask, setHistoryTask] = useState(null)
   const [toast, setToast] = useState(null)
   const [members, setMembers] = useState([])
+  const { data: session } = authClient.useSession()
 
   useEffect(() => {
     fetchHouseMembers().then(setMembers).catch(() => {})
   }, [])
+
+  // Todo miembro puede crear tareas; editarlas, borrarlas o resetearlas sigue
+  // reservado a duenos y admins (mismo criterio que la API).
+  const myRole = members.find(m => m.userId === session?.user?.id)?.role
+  const canManage = myRole === 'owner' || myRole === 'admin'
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -247,6 +254,7 @@ export default function Admin() {
               task={task}
               deletingId={deletingId}
               resettingId={resettingId}
+              canManage={canManage}
               onEdit={openEdit}
               onDelete={handleDelete}
               onReset={handleReset}
@@ -289,7 +297,7 @@ export default function Admin() {
   )
 }
 
-function TaskAdminCard({ task, deletingId, resettingId, onEdit, onDelete, onReset, onToggleActive, onHistory }) {
+function TaskAdminCard({ task, canManage, deletingId, resettingId, onEdit, onDelete, onReset, onToggleActive, onHistory }) {
   const isDeleting = deletingId === task.id
   const isResetting = resettingId === task.id
 
@@ -316,8 +324,10 @@ function TaskAdminCard({ task, deletingId, resettingId, onEdit, onDelete, onRese
         <div className="flex items-start gap-2.5">
           {/* Toggle */}
           <button
-            onClick={() => onToggleActive(task)}
-            className="mt-0.5 flex-shrink-0 w-[18px] h-[18px] rounded-md border-[1.5px] flex items-center justify-center transition-all"
+            onClick={() => canManage && onToggleActive(task)}
+            disabled={!canManage}
+            aria-label={task.is_active ? 'Tarea activa' : 'Tarea inactiva'}
+            className="mt-0.5 flex-shrink-0 w-[18px] h-[18px] rounded-md border-[1.5px] flex items-center justify-center transition-all disabled:cursor-default"
             style={{
               background: task.is_active ? 'var(--moss-400)' : 'transparent',
               borderColor: task.is_active ? 'var(--moss-400)' : 'var(--bark-200)',
@@ -389,6 +399,8 @@ function TaskAdminCard({ task, deletingId, resettingId, onEdit, onDelete, onRese
             <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>
           </svg>
         </AdminBtn>
+        {canManage && (
+        <>
         <AdminBtn onClick={() => onReset(task)} title="Resetear" disabled={isResetting}>
           {isResetting ? (
             <div className="w-3.5 h-3.5 rounded-full border-[1.5px] border-t-transparent animate-spin" style={{ borderColor: 'var(--moss-200)', borderTopColor: 'transparent' }} />
@@ -418,6 +430,8 @@ function TaskAdminCard({ task, deletingId, resettingId, onEdit, onDelete, onRese
             </svg>
           )}
         </AdminBtn>
+        </>
+        )}
       </div>
     </div>
   )

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   requireRole,
+  denyExternalMembers,
   createRequireAuth,
   createRequireHouse,
   createRequireSuperAdmin,
@@ -62,6 +63,54 @@ describe('requireRole', () => {
     mw(req, res, next)
 
     expect(next).toHaveBeenCalledOnce()
+  })
+})
+
+describe('denyExternalMembers', () => {
+  it('llama next() para un miembro regular', () => {
+    const req = { house: { role: 'member', memberType: 'regular' } }
+    const res = mockRes()
+    const next = vi.fn()
+
+    denyExternalMembers(req, res, next)
+
+    expect(next).toHaveBeenCalledOnce()
+    expect(res.status).not.toHaveBeenCalled()
+  })
+
+  it('llama next() para owner y admin', () => {
+    for (const role of ['owner', 'admin']) {
+      const req = { house: { role, memberType: 'regular' } }
+      const res = mockRes()
+      const next = vi.fn()
+
+      denyExternalMembers(req, res, next)
+
+      expect(next).toHaveBeenCalledOnce()
+    }
+  })
+
+  it('responde 403 cuando el miembro es externo', () => {
+    const req = { house: { role: 'member', memberType: 'externo' } }
+    const res = mockRes()
+    const next = vi.fn()
+
+    denyExternalMembers(req, res, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(403)
+    expect(res.json).toHaveBeenCalledWith({ error: 'No tienes permisos para esta accion' })
+  })
+
+  it('responde 403 cuando req.house no esta definido', () => {
+    const req = {}
+    const res = mockRes()
+    const next = vi.fn()
+
+    denyExternalMembers(req, res, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.status).toHaveBeenCalledWith(403)
   })
 })
 

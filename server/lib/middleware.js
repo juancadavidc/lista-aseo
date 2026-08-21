@@ -17,6 +17,18 @@ export function requireRole(...roles) {
 }
 
 /**
+ * denyExternalMembers - bloquea al personal externo en acciones de gestion.
+ * El rol externo solo marca visitas y completa tareas; no administra la casa.
+ * Requiere req.house (normalmente por requireHouse).
+ */
+export function denyExternalMembers(req, res, next) {
+  if (!req.house || req.house.memberType === 'externo') {
+    return res.status(403).json({ error: 'No tienes permisos para esta accion' })
+  }
+  next()
+}
+
+/**
  * createRequireAuth - factory que recibe la instancia de better-auth
  * y devuelve un middleware que resuelve la sesion a partir de los headers.
  */
