@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import ShoppingList from '../ShoppingList'
+import ShoppingList, { parseItemNames } from '../ShoppingList'
 
 // Mock the API module
 vi.mock('../../lib/api', () => ({
@@ -52,10 +52,10 @@ describe('ShoppingList — Smart Tags integration', () => {
     renderShoppingList()
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Agregar producto...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Agregar productos (separa con comas)...')).toBeInTheDocument()
     })
 
-    await user.type(screen.getByPlaceholderText('Agregar producto...'), 'detergente')
+    await user.type(screen.getByPlaceholderText('Agregar productos (separa con comas)...'), 'detergente')
 
     expect(screen.getByText('Sugerencia:')).toBeInTheDocument()
     expect(screen.getByText('Limpieza')).toBeInTheDocument()
@@ -67,10 +67,10 @@ describe('ShoppingList — Smart Tags integration', () => {
     renderShoppingList()
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Agregar producto...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Agregar productos (separa con comas)...')).toBeInTheDocument()
     })
 
-    await user.type(screen.getByPlaceholderText('Agregar producto...'), 'xyzabc')
+    await user.type(screen.getByPlaceholderText('Agregar productos (separa con comas)...'), 'xyzabc')
 
     expect(screen.queryByText('Sugerencia:')).not.toBeInTheDocument()
   })
@@ -80,10 +80,10 @@ describe('ShoppingList — Smart Tags integration', () => {
     renderShoppingList()
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Agregar producto...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Agregar productos (separa con comas)...')).toBeInTheDocument()
     })
 
-    await user.type(screen.getByPlaceholderText('Agregar producto...'), 'detergente')
+    await user.type(screen.getByPlaceholderText('Agregar productos (separa con comas)...'), 'detergente')
 
     // Click the suggestion chip (the button with the category name)
     const chip = screen.getByRole('button', { name: /Limpieza/ })
@@ -102,10 +102,10 @@ describe('ShoppingList — Smart Tags integration', () => {
     renderShoppingList()
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Agregar producto...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Agregar productos (separa con comas)...')).toBeInTheDocument()
     })
 
-    await user.type(screen.getByPlaceholderText('Agregar producto...'), 'detergente')
+    await user.type(screen.getByPlaceholderText('Agregar productos (separa con comas)...'), 'detergente')
     expect(screen.getByText('Sugerencia:')).toBeInTheDocument()
 
     // Click dismiss button (the X)
@@ -125,7 +125,7 @@ describe('ShoppingList — Smart Tags integration', () => {
     renderShoppingList()
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Agregar producto...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Agregar productos (separa con comas)...')).toBeInTheDocument()
     })
 
     // First select a category from dropdown
@@ -133,7 +133,7 @@ describe('ShoppingList — Smart Tags integration', () => {
     await user.selectOptions(select, 'cat-3')
 
     // Then type a keyword that would normally trigger a suggestion
-    await user.type(screen.getByPlaceholderText('Agregar producto...'), 'detergente')
+    await user.type(screen.getByPlaceholderText('Agregar productos (separa con comas)...'), 'detergente')
 
     // No suggestion should appear since category is already selected
     expect(screen.queryByText('Sugerencia:')).not.toBeInTheDocument()
@@ -144,10 +144,10 @@ describe('ShoppingList — Smart Tags integration', () => {
     renderShoppingList()
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Agregar producto...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Agregar productos (separa con comas)...')).toBeInTheDocument()
     })
 
-    const input = screen.getByPlaceholderText('Agregar producto...')
+    const input = screen.getByPlaceholderText('Agregar productos (separa con comas)...')
 
     // Type a cleaning product
     await user.type(input, 'detergente')
@@ -218,7 +218,7 @@ describe('ShoppingList — Smart Tags integration', () => {
   it('no renderiza la seccion de sugerencias cuando no hay recomendaciones', async () => {
     renderShoppingList()
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Agregar producto...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Agregar productos (separa con comas)...')).toBeInTheDocument()
     })
     expect(screen.queryByText(/Sugeridos para volver a comprar/i)).not.toBeInTheDocument()
   })
@@ -228,10 +228,10 @@ describe('ShoppingList — Smart Tags integration', () => {
     renderShoppingList()
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Agregar producto...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Agregar productos (separa con comas)...')).toBeInTheDocument()
     })
 
-    await user.type(screen.getByPlaceholderText('Agregar producto...'), 'detergente')
+    await user.type(screen.getByPlaceholderText('Agregar productos (separa con comas)...'), 'detergente')
 
     // Accept suggestion
     const chip = screen.getByRole('button', { name: /Limpieza/ })
@@ -240,7 +240,7 @@ describe('ShoppingList — Smart Tags integration', () => {
     // Submit form
     const submitBtn = screen.getByRole('button', { name: '' })
     // The submit button has no text, just an SVG icon. Find it by type=submit
-    const form = screen.getByPlaceholderText('Agregar producto...').closest('form')
+    const form = screen.getByPlaceholderText('Agregar productos (separa con comas)...').closest('form')
     form.requestSubmit()
 
     await waitFor(() => {
@@ -369,5 +369,132 @@ describe('ShoppingList — edición de ítems', () => {
     await user.clear(screen.getByDisplayValue('Detergente'))
 
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+  })
+})
+
+describe('parseItemNames', () => {
+  it('devuelve un solo nombre cuando no hay comas', () => {
+    expect(parseItemNames('detergente')).toEqual(['detergente'])
+  })
+
+  it('separa por comas y recorta espacios', () => {
+    expect(parseItemNames('manzana, pera ,  banano')).toEqual(['manzana', 'pera', 'banano'])
+  })
+
+  it('ignora entradas vacías y comas sobrantes', () => {
+    expect(parseItemNames(' , manzana,, ,pera, ')).toEqual(['manzana', 'pera'])
+  })
+
+  it('elimina duplicados sin distinguir mayúsculas', () => {
+    expect(parseItemNames('Leche, leche, LECHE, pan')).toEqual(['Leche', 'pan'])
+  })
+
+  it('normaliza espacios internos', () => {
+    expect(parseItemNames('papel   higienico')).toEqual(['papel higienico'])
+  })
+
+  it('devuelve lista vacía para texto vacío o nulo', () => {
+    expect(parseItemNames('')).toEqual([])
+    expect(parseItemNames('   ')).toEqual([])
+    expect(parseItemNames(null)).toEqual([])
+  })
+})
+
+describe('ShoppingList — agregar múltiples productos por coma', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    fetchShoppingItems.mockResolvedValue([])
+    fetchShoppingCategories.mockResolvedValue(MOCK_CATEGORIES)
+    fetchShoppingRecommendations.mockResolvedValue([])
+    createShoppingItem.mockResolvedValue({ id: 'new-1' })
+  })
+
+  it('crea un item por cada producto separado por coma con la misma categoría', async () => {
+    const user = userEvent.setup()
+    renderShoppingList()
+
+    const input = await screen.findByPlaceholderText('Agregar productos (separa con comas)...')
+    await user.type(input, 'lechuga, tomate, cebolla')
+    await user.selectOptions(screen.getByRole('combobox'), 'cat-2')
+    input.closest('form').requestSubmit()
+
+    await waitFor(() => {
+      expect(createShoppingItem).toHaveBeenCalledTimes(3)
+    })
+    expect(createShoppingItem).toHaveBeenCalledWith({ name: 'lechuga', note: null, category_id: 'cat-2' })
+    expect(createShoppingItem).toHaveBeenCalledWith({ name: 'tomate', note: null, category_id: 'cat-2' })
+    expect(createShoppingItem).toHaveBeenCalledWith({ name: 'cebolla', note: null, category_id: 'cat-2' })
+  })
+
+  it('muestra el preview con la cantidad de productos', async () => {
+    const user = userEvent.setup()
+    renderShoppingList()
+
+    const input = await screen.findByPlaceholderText('Agregar productos (separa con comas)...')
+    await user.type(input, 'lechuga, tomate')
+
+    expect(screen.getByText(/2 productos: lechuga · tomate/)).toBeInTheDocument()
+  })
+
+  it('no muestra preview con un solo producto', async () => {
+    const user = userEvent.setup()
+    renderShoppingList()
+
+    const input = await screen.findByPlaceholderText('Agregar productos (separa con comas)...')
+    await user.type(input, 'lechuga')
+
+    expect(screen.queryByText(/productos:/)).not.toBeInTheDocument()
+  })
+
+  it('limpia el input y avisa cuántos se agregaron', async () => {
+    const user = userEvent.setup()
+    renderShoppingList()
+
+    const input = await screen.findByPlaceholderText('Agregar productos (separa con comas)...')
+    await user.type(input, 'lechuga, tomate')
+    input.closest('form').requestSubmit()
+
+    await waitFor(() => {
+      expect(screen.getByText('2 productos agregados')).toBeInTheDocument()
+    })
+    expect(input.value).toBe('')
+  })
+
+  it('conserva en el input los productos que fallaron', async () => {
+    const user = userEvent.setup()
+    createShoppingItem.mockImplementation(({ name }) =>
+      name === 'tomate' ? Promise.reject(new Error('boom')) : Promise.resolve({ id: 'ok' })
+    )
+    renderShoppingList()
+
+    const input = await screen.findByPlaceholderText('Agregar productos (separa con comas)...')
+    await user.type(input, 'lechuga, tomate')
+    input.closest('form').requestSubmit()
+
+    await waitFor(() => {
+      expect(screen.getByText('1 agregados, 1 con error')).toBeInTheDocument()
+    })
+    expect(input.value).toBe('tomate')
+  })
+
+  it('sugiere la categoría cuando todos los productos son de la misma', async () => {
+    const user = userEvent.setup()
+    renderShoppingList()
+
+    const input = await screen.findByPlaceholderText('Agregar productos (separa con comas)...')
+    await user.type(input, 'lechuga, tomate')
+
+    expect(screen.getByText('Sugerencia:')).toBeInTheDocument()
+    expect(screen.getByText('Frutas y Verduras')).toBeInTheDocument()
+  })
+
+  it('no sugiere categoría cuando los productos son de categorías distintas', async () => {
+    const user = userEvent.setup()
+    renderShoppingList()
+
+    const input = await screen.findByPlaceholderText('Agregar productos (separa con comas)...')
+    await user.type(input, 'lechuga, detergente')
+
+    expect(screen.queryByText('Sugerencia:')).not.toBeInTheDocument()
   })
 })

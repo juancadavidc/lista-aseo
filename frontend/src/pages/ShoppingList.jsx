@@ -25,12 +25,22 @@ export default function ShoppingList() {
   const [dismissedRecs, setDismissedRecs] = useState(() => new Set())
   const [recsCollapsed, setRecsCollapsed] = useState(false)
   const [addingRecName, setAddingRecName] = useState(null)
+  const [adding, setAdding] = useState(false)
 
+  // Permite agregar varios productos de una sola vez separandolos por coma.
+  const parsedNames = useMemo(() => parseItemNames(newName), [newName])
+
+  // Solo se sugiere categoria cuando todos los productos escritos apuntan
+  // a la misma; si se mezclan categorias no hay una sugerencia util.
   const suggestion = useMemo(() => {
-    if (!newName.trim() || newCategoryId) return null
+    if (parsedNames.length === 0 || newCategoryId) return null
     if (dismissedFor === newName) return null
-    return suggestCategory(newName, categories)
-  }, [newName, categories, newCategoryId, dismissedFor])
+    const matches = parsedNames.map(name => suggestCategory(name, categories))
+    const first = matches.find(Boolean)
+    if (!first) return null
+    if (matches.some(m => m && m.id !== first.id)) return null
+    return first
+  }, [parsedNames, newName, categories, newCategoryId, dismissedFor])
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -59,22 +69,37 @@ export default function ShoppingList() {
 
   async function handleAdd(e) {
     e.preventDefault()
-    if (!newName.trim()) return
+    const names = parsedNames
+    if (names.length === 0 || adding) return
+    const note = newNote.trim() || null
+    const categoryId = newCategoryId || null
+    setAdding(true)
     try {
-      await createShoppingItem({
-        name: newName.trim(),
-        note: newNote.trim() || null,
-        category_id: newCategoryId || null,
-      })
-      setNewName('')
-      setNewNote('')
-      setNewCategoryId('')
-      setShowNote(false)
-      setDismissedFor('')
-      showToast('Agregado a la lista')
+      const results = await Promise.allSettled(
+        names.map(name => createShoppingItem({ name, note, category_id: categoryId }))
+      )
+      const failedNames = names.filter((_, i) => results[i].status === 'rejected')
+      const addedCount = names.length - failedNames.length
+
+      // Los que fallaron se conservan en el input para reintentar.
+      setNewName(failedNames.join(', '))
+      if (failedNames.length === 0) {
+        setNewNote('')
+        setNewCategoryId('')
+        setShowNote(false)
+        setDismissedFor('')
+      }
+
+      if (failedNames.length === 0) {
+        showToast(addedCount === 1 ? 'Agregado a la lista' : `${addedCount} productos agregados`)
+      } else if (addedCount > 0) {
+        showToast(`${addedCount} agregados, ${failedNames.length} con error`, 'warning')
+      } else {
+        showToast('Error al agregar', 'error')
+      }
       loadData()
-    } catch {
-      showToast('Error al agregar', 'error')
+    } finally {
+      setAdding(false)
     }
   }
 
@@ -264,7 +289,7 @@ export default function ShoppingList() {
               type="text"
               value={newName}
               onChange={e => setNewName(e.target.value)}
-              placeholder="Agregar producto..."
+              placeholder="Agregar productos (separa con comas)..."
               className="w-full px-3.5 py-2.5 rounded-xl font-body text-[16px] outline-none transition-all pr-10"
               style={{
                 background: 'var(--surface-card)',
@@ -289,7 +314,7 @@ export default function ShoppingList() {
           </div>
           <button
             type="submit"
-            disabled={!newName.trim()}
+            disabled={parsedNames.length === 0 || adding}
             className="px-4 py-2.5 rounded-xl font-body font-semibold text-[13px] text-white transition-all active:scale-95 disabled:opacity-40"
             style={{ background: 'var(--moss-500)', boxShadow: '0 2px 8px rgba(77,122,68,0.25)' }}
           >
@@ -298,6 +323,13 @@ export default function ShoppingList() {
             </svg>
           </button>
         </div>
+
+        {/* Preview cuando se escriben varios productos separados por coma */}
+        {parsedNames.length > 1 && (
+          <p className="font-body text-[11px] mt-2 px-1" style={{ color: 'var(--bark-300)' }}>
+            {parsedNames.length} productos: {parsedNames.join(' · ')}
+          </p>
+        )}
 
         {/* Smart tag suggestion */}
         {suggestion && (
@@ -475,6 +507,22 @@ export default function ShoppingList() {
       )}
     </div>
   )
+}
+
+// Divide el texto del input en varios nombres de producto separados por coma.
+// Normaliza espacios y elimina duplicados (sin distinguir mayusculas).
+export function parseItemNames(text) {
+  const seen = new Set()
+  const names = []
+  for (const raw of String(text || '').split(',')) {
+    const name = raw.trim().replace(/\s+/g, ' ')
+    if (!name) continue
+    const key = name.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    names.push(name)
+  }
+  return names
 }
 
 function groupByCategory(items, categories) {
