@@ -22,6 +22,13 @@
 
 ## [Fase 2] — Experiencias Agénticas
 
+### 2026-08-21 — Fix CI: actualización de dependencias con advisories high
+- **Problema** — el job `npm audit (high severity)` de `pr-checks.yml` empezó a fallar en frontend y server por advisories publicados contra versiones ya pinneadas (better-auth `<=1.6.21` XSS + account takeover, nanoid, postcss, express/qs, vite). No lo causó ningún cambio de código: falla igual sobre `main` sin tocar nada.
+- **Solución** — `npm update` en `frontend/` y `server/`: solo sube dentro de los rangos `^` ya declarados, sin `--force` ni majors. `better-auth 1.5.6 → 1.7.1` (misma versión en ambos paquetes, cliente y servidor alineados), `express 4.21 → 4.22.2`, `nanoid → 3.3.18`, `postcss → 8.5.26`. Solo cambian los `package-lock.json`; los `package.json` quedan intactos.
+- **Resultado** — server: 0 vulnerabilidades. Frontend: 0 de severidad high; quedan 2 *moderate* de `react-router` 6.x cuyo fix exige saltar a 7.x (breaking). El gate del CI es `--audit-level=high`, así que no bloquea; el salto a React Router 7 queda como decisión aparte.
+- **Verificación** — server 71/71, frontend 176/176, coverage OK, build de Vite verde. Smoke de `createAuth` con better-auth 1.7.1: `handler`, `api.getSession`, `api.createOrganization` y plugin `organization` intactos; `GET /api/auth/ok` responde 200.
+- Archivos: `frontend/package-lock.json`, `server/package-lock.json`.
+
 ### 2026-08-21 — Compras: agregar varios productos separados por coma
 - **Visión** — reduce la fricción del caso más común de la lista: cargar de una vez varios productos de la misma categoría ("lechuga, tomate, cebolla") sin repetir el ciclo escribir → elegir categoría → enviar por cada uno.
 - **Un input, N productos** — el campo de "Agregar productos" ahora acepta nombres separados por coma. `parseItemNames` recorta espacios, normaliza espacios internos, ignora comas sobrantes/vacías y elimina duplicados sin distinguir mayúsculas. Cada nombre se crea como un ítem propio con la **misma nota y categoría**, así que el flujo de un solo producto no cambia.
