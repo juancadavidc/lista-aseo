@@ -22,6 +22,23 @@
 
 ## [Fase 2] — Experiencias Agénticas
 
+### 2026-08-21 — Fix CI: actualización de dependencias con advisories high
+- **Problema** — el job `npm audit (high severity)` de `pr-checks.yml` empezó a fallar en frontend y server por advisories publicados contra versiones ya pinneadas (better-auth `<=1.6.21` XSS + account takeover, nanoid, postcss, express/qs, vite). No lo causó ningún cambio de código: falla igual sobre `main` sin tocar nada.
+- **Solución** — `npm update` en `frontend/` y `server/`: solo sube dentro de los rangos `^` ya declarados, sin `--force` ni majors. `better-auth 1.5.6 → 1.7.1` (misma versión en ambos paquetes, cliente y servidor alineados), `express 4.21 → 4.22.2`, `nanoid → 3.3.18`, `postcss → 8.5.26`. Solo cambian los `package-lock.json`; los `package.json` quedan intactos.
+- **Resultado** — server: 0 vulnerabilidades. Frontend: 0 de severidad high; quedan 2 *moderate* de `react-router` 6.x cuyo fix exige saltar a 7.x (breaking). El gate del CI es `--audit-level=high`, así que no bloquea; el salto a React Router 7 queda como decisión aparte.
+- **Verificación** — server 71/71, frontend 176/176, coverage OK, build de Vite verde. Smoke de `createAuth` con better-auth 1.7.1: `handler`, `api.getSession`, `api.createOrganization` y plugin `organization` intactos; `GET /api/auth/ok` responde 200.
+- Archivos: `frontend/package-lock.json`, `server/package-lock.json`.
+
+### 2026-08-21 — Compras: agregar varios productos separados por coma
+- **Visión** — reduce la fricción del caso más común de la lista: cargar de una vez varios productos de la misma categoría ("lechuga, tomate, cebolla") sin repetir el ciclo escribir → elegir categoría → enviar por cada uno.
+- **Un input, N productos** — el campo de "Agregar productos" ahora acepta nombres separados por coma. `parseItemNames` recorta espacios, normaliza espacios internos, ignora comas sobrantes/vacías y elimina duplicados sin distinguir mayúsculas. Cada nombre se crea como un ítem propio con la **misma nota y categoría**, así que el flujo de un solo producto no cambia.
+- **Preview antes de enviar** — al detectar más de un nombre aparece una línea "N productos: a · b · c" bajo el input, para confirmar cómo se va a partir el texto antes de agregar.
+- **Smart Tags multi-producto** — la sugerencia de categoría se calcula sobre todos los nombres: se muestra solo si todos los que hacen match apuntan a la misma categoría. Si se mezclan (p. ej. "lechuga, detergente") no se sugiere nada, evitando etiquetar mal el lote.
+- **Errores parciales** — los items se crean en paralelo con `Promise.allSettled`; los que fallan se conservan en el input para reintentar y el toast informa "N agregados, M con error". El botón se bloquea mientras se envía para evitar duplicados por doble tap.
+- **Sin cambios de backend** — se reutiliza `POST /api/shopping-items` tal cual; API y contratos existentes intactos.
+- **Tests** — frontend 176/176 (13 casos nuevos: parseo, preview, sugerencia mixta, fallo parcial), build de Vite verde.
+- Archivos: `frontend/src/pages/ShoppingList.jsx`, `frontend/src/pages/__tests__/ShoppingList.test.jsx`.
+
 ### 2026-05-26 — UI: Navbar y menú móvil "luxury hogar"
 - **Visión** — refinamiento del header y drawer lateral para elevar la percepción de marca de "app utilitaria" a "concierge del hogar". Prepara el terreno para los tiers de pago de Fase 3: si la app se ve premium, justifica el precio.
 - **Header** — botón hamburguesa pasó de `border + fondo blanco` (parecía input) a **ghost button** con stroke fino (1.6px) y barra inferior corta para un trazo editorial. El logo card mantiene los colores moss pero gana degradado más profundo (`#7aa870 → #385c32`) con inner highlight + sombra sutil. El título "Perlato" ahora viene acompañado de un **saludo dinámico** ("Buenas tardes, Juan") en micro tipografía body con tracking amplio, dependiente de la hora y del nombre de la sesión.
