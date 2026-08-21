@@ -6,6 +6,19 @@
 
 ---
 
+## [Fase 1] — Retención y Engagement
+
+### 2026-08-21 — Cualquier miembro puede crear tareas
+- **Visión** — la propuesta de valor para familias es "saber quién hace qué y distribuir el trabajo". Que solo el dueño/admin pudiera dar de alta tareas convertía a los demás en ejecutores: veían el botón "Nueva" y recibían un 403. Ahora cualquier integrante de la casa suma pendientes cuando los detecta, sin pedirle permiso a nadie.
+- **Backend** — `POST /api/tasks` deja de exigir `requireRole('owner','admin')` y pasa a `denyExternalMembers`: entra cualquier miembro de la casa (owner, admin o member) salvo el personal externo, que sigue limitado a marcar llegada y completar tareas. `PATCH`, `DELETE` y `POST /api/tasks/:id/reset` **no cambian**: editar, borrar y resetear siguen siendo de dueño/admin.
+- **Nuevo middleware** — `denyExternalMembers` en `server/lib/middleware.js`, síncrono y puro como `requireRole`, apoyado en `req.house.memberType` que ya resolvía `requireHouse`. Responde 403 también si falta `req.house` (fail-closed).
+- **Frontend** — `Admin.jsx` deriva el rol propio de `fetchHouseMembers()` + la sesión (mismo patrón de `HouseSettings`) y expone `canManage`. Para un miembro regular el botón "Nueva" y el historial quedan visibles, mientras que resetear/editar/eliminar se ocultan y el checkbox de activa/inactiva queda deshabilitado: se elimina el bug de UI de botones que sólo devolvían 403.
+- **Tests** — backend 75/75 (4 casos nuevos de `denyExternalMembers`), frontend 166/166 (nuevo `pages/__tests__/Admin.test.jsx` con los tres roles), build de Vite verde (434 kB). Code graph regenerado.
+- **Pendiente sugerido** — un miembro que crea una tarea todavía no puede corregirla; el siguiente paso natural sería `created_by` en `tasks` para permitir editar/borrar lo propio.
+- Archivos: `server/index.js`, `server/lib/middleware.js`, `server/lib/middleware.test.js`, `frontend/src/pages/Admin.jsx`, `frontend/src/pages/__tests__/Admin.test.jsx`.
+
+---
+
 ## [Fase 3] — Monetización
 
 ### 2026-06-11 — Rol "externo": marca de llegada + fecha heredada por las tareas

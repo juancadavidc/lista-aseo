@@ -12,6 +12,7 @@ import { createAuth } from './auth.js'
 import webpush from 'web-push'
 import {
   requireRole,
+  denyExternalMembers,
   createRequireAuth,
   createRequireHouse,
   createRequireSuperAdmin,
@@ -569,7 +570,8 @@ app.get('/api/tasks', requireAuth, requireHouse, async (req, res) => {
 })
 
 // POST /api/tasks
-app.post('/api/tasks', requireAuth, requireHouse, requireRole('owner', 'admin'), async (req, res) => {
+// Cualquier miembro de la casa puede crear tareas (el personal externo no).
+app.post('/api/tasks', requireAuth, requireHouse, denyExternalMembers, async (req, res) => {
   try {
     const { name, description, frequency_type, frequency_value, is_active, product_name, product_image } = req.body
     const { rows } = await pool.query(
