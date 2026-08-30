@@ -26,6 +26,7 @@ import {
   SHOPPING_ITEM_UPDATABLE_COLUMNS,
 } from './lib/patch-update.js'
 import { buildRecommendations } from './lib/shopping-recommendations.js'
+import { migrateAccountIssuer } from './lib/auth-schema-migration.js'
 
 const SHOPPING_AUTO_ARCHIVE_DAYS = 7
 
@@ -1575,6 +1576,9 @@ async function migrate() {
     `)
     await pool.query('CREATE INDEX IF NOT EXISTS idx_push_subs_org ON push_subscriptions(organization_id)')
     await pool.query('CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id)')
+
+    // Schema de better-auth: columna `issuer` agregada en 1.7 (ver lib/auth-schema-migration.js)
+    await migrateAccountIssuer(pool)
 
     console.log('Migrations complete')
   } catch (err) {

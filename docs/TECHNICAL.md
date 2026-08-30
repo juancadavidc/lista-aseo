@@ -79,7 +79,9 @@ lista-aseo/
 - **plant_watering_history** — Registro de cada riego (quién y cuándo)
 
 ### Tablas de auth (better-auth)
-- user, session, organization, member — Manejadas automáticamente
+- user, session, account, verification, organization, member, invitation — Creadas por better-auth, no por `init.sql`
+- **No se regeneran solas al subir de versión.** Si un upgrade de `better-auth` cambia el schema hay que agregar la migración incremental a mano en `migrate()` (`server/index.js`). Ejemplo: `server/lib/auth-schema-migration.js` agrega la columna `account.issuer` que introdujo better-auth 1.7; sin ella el callback de Google falla con `internal_server_error`.
+- Para detectar drift tras un bump: correr `getMigrations(auth.options)` de better-auth contra una copia de la base y revisar `toBeAdded`/`toBeCreated`.
 
 ## Entornos
 
